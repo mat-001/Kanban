@@ -46,6 +46,9 @@
 
   function importTasks(tasks) {
     const existing = new Map(state.tasks.map(task => [task.id, task]));
+    const fingerprints = new Set(state.tasks.map(task =>
+      JSON.stringify([task.t, task.c, task.p, task.created, task.due, task.e, task.doneAt, task.since])
+    ));
     let added = 0;
     let skipped = 0;
     let invalid = 0;
@@ -58,7 +61,10 @@
       }
 
       const current = existing.get(task.id);
-      if (current && current.t === task.t) {
+      const fingerprint = JSON.stringify([
+        task.t, task.c, task.p, task.created, task.due, task.e, task.doneAt, task.since
+      ]);
+      if ((current && current.t === task.t) || fingerprints.has(fingerprint)) {
         skipped++;
         return;
       }
@@ -66,6 +72,7 @@
       while (existing.has(task.id)) task.id++;
       state.tasks.push(task);
       existing.set(task.id, task);
+      fingerprints.add(fingerprint);
       added++;
     });
 

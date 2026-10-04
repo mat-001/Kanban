@@ -13,6 +13,9 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [] } = {}) {
   const failedKeys = new Set(failWrites);
   const events = [];
   const elements = new Map();
+  const listeners = new Map();
+  const timers = new Map();
+  let nextTimerId = 1;
   const NativeDate = Date;
 
   class FixedDate extends NativeDate {
@@ -25,22 +28,48 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [] } = {}) {
     }
   }
 
-  function element(id) {
-    if (!elements.has(id)) {
-      elements.set(id, {
+  function makeElement(tagName = "div", id = "") {
+    const classes = new Set();
+    const node = {
+        tagName,
         id,
         hidden: false,
         textContent: "",
         className: "",
         value: "",
+        type: "",
+        title: "",
+        draggable: false,
+        validity: { badInput: false },
         files: [],
         children: [],
         open: false,
+        attributes: {},
+        classList: {
+          add(name) {
+            classes.add(name);
+          },
+          remove(name) {
+            classes.delete(name);
+          },
+          contains(name) {
+            return classes.has(name);
+          }
+        },
         appendChild(child) {
           this.children.push(child);
         },
+        append(...children) {
+          this.children.push(...children);
+        },
         replaceChildren(...children) {
           this.children = children;
+        },
+        setAttribute(name, value) {
+          this.attributes[name] = value;
+        },
+        focus() {
+          this.focused = true;
         },
         showModal() {
           this.open = true;
@@ -50,28 +79,73 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [] } = {}) {
         },
         click() {
           this.clicked = true;
+          if (this.onclick) this.onclick();
+        },
+        replaceWith(replacement) {
+          if (this.id) elements.set(this.id, replacement);
         }
-      });
+      };
+    Object.defineProperties(node, {
+      outerHTML: {
+        get() {
+          return `<${this.tagName} id="${this.id}">`;
+        }
+      },
+      firstElementChild: {
+        get() {
+          return this.children[0] || null;
+        }
+      },
+      innerHTML: {
+        get() {
+          return this._innerHTML || "";
+        },
+        set(value) {
+          this._innerHTML = value;
+          const match = value.match(/<input\b[^>]*\bid="([^"]+)"/);
+          if (match) this.children = [makeElement("input", match[1])];
+        }
+      }
+    });
+    return node;
+  }
+
+  function element(id) {
+    if (!elements.has(id)) {
+      const inputIds = new Set(["age", "buf", "d", "days", "ed", "ee", "e", "ep", "et", "impfile", "p", "t"]);
+      const tagName = inputIds.has(id) ? "input" : "div";
+      const input = makeElement(tagName, id);
+      if (id === "p" || id === "ep") input.value = "mittel";
+      if (id === "e") input.value = "1";
+      elements.set(id, input);
     }
     return elements.get(id);
   }
 
   const document = {
     body: { appendChild() {} },
-    createElement() {
-      return {
-        children: [],
-        appendChild(child) {
-          this.children.push(child);
-        },
-        click() {},
-        remove() {}
-      };
+    createElement(tagName) {
+      return makeElement(tagName);
     },
     dispatchEvent(event) {
       events.push(event.type);
+      (listeners.get(event.type) || []).forEach(listener => listener(event));
+    },
+    addEventListener(type, listener) {
+      if (!listeners.has(type)) listeners.set(type, []);
+      listeners.get(type).push(listener);
     },
     getElementById: element
+  };
+  const timersApi = {
+    setTimeout(callback, delay) {
+      const id = nextTimerId++;
+      timers.set(id, { callback, delay });
+      return id;
+    },
+    clearTimeout(id) {
+      timers.delete(id);
+    }
   };
 
   const sandbox = {
@@ -82,6 +156,8 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [] } = {}) {
       }
     },
     document,
+    setTimeout: timersApi.setTimeout,
+    clearTimeout: timersApi.clearTimeout,
     localStorage: {
       getItem(key) {
         return storedValues.has(key) ? storedValues.get(key) : null;
@@ -108,8 +184,34 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [] } = {}) {
     events,
     load,
     sandbox,
+    timers,
     storedValues
   };
+}
+
+function loadBoard(app) {
+  app.load("backup.js");
+  app.load("summary.js");
+  app.load("board.js");
+  return app;
+}
+
+function submitEvent() {
+  return { preventDefault() {} };
+}
+
+function cardFor(app, title) {
+  for (const column of app.element("b").children) {
+    const card = column.children.find(child =>
+      child.className.startsWith("card ") &&
+      child.children[0].children[0].textContent === title);
+    if (card) return card;
+  }
+  return null;
+}
+
+function actionButton(card, label) {
+  return card.children[1].children.find(button => button.textContent === label);
 }
 
 function task(id, overrides = {}) {
@@ -129,6 +231,8 @@ test("berechnet den spätesten Start mit Arbeitstagen, Aufwand und Puffer", () =
   const { Kanban } = createApp();
 
   assert.equal(Kanban.lastStart({ due: "2026-10-12", e: 8 }, 0), "2026-10-12");
+  assert.equal(Kanban.lastStart({ due: "2026-10-12", e: 1 }, 0), "2026-10-12");
+  assert.equal(Kanban.lastStart({ due: "2026-10-12", e: 8.1 }, 0), "2026-10-09");
   assert.equal(Kanban.lastStart({ due: "2026-10-12", e: 16 }, 0), "2026-10-09");
   assert.equal(Kanban.lastStart({ due: "2026-10-12", e: 8 }, 1), "2026-10-09");
   assert.equal(Kanban.lastStart({ due: "2026-10-11", e: 8 }, 0), "2026-10-09");
@@ -152,12 +256,13 @@ test("sortiert offene Aufgaben erst nach verpasstem Start, dann nach Priorität 
   const sort = Kanban.sorter("todo", 0, 0);
   const missedLow = task(1, { p: "niedrig", due: "2026-10-01" });
   const futureHigh = task(2, { p: "hoch", due: "2026-10-12" });
-  const futureMediumOlder = task(3, { p: "mittel", created: 100 });
-  const futureMediumNewer = task(4, { p: "mittel", created: 200 });
+  const futureMediumOlder = task(3, { p: "mittel", created: 100, due: "2026-10-12" });
+  const futureMediumNewer = task(4, { p: "mittel", created: 200, due: "2026-10-12" });
+  const futureMediumNoDate = task(5, { p: "mittel", created: 50 });
 
   assert.deepEqual(
-    [futureMediumNewer, futureHigh, missedLow, futureMediumOlder].sort(sort).map(item => item.id),
-    [1, 2, 3, 4]
+    [futureMediumNewer, futureMediumNoDate, futureHigh, missedLow, futureMediumOlder].sort(sort).map(item => item.id),
+    [1, 2, 3, 4, 5]
   );
 });
 
@@ -374,6 +479,11 @@ test("weist fehlerhafte Importdateien ohne Änderung der Daten zurück", async (
   input.files = [{ size: 2e6 + 1, text: async () => "{}" }];
   await input.onchange({ target: input });
   assert.match(app.element("dmsg").textContent, /groß/);
+
+  input.files = [{ size: 20, text: async () => JSON.stringify({ tasks: "keine Aufgabenliste" }) }];
+  await input.onchange({ target: input });
+  assert.equal(app.Kanban.state.tasks.length, 1);
+  assert.match(app.element("dmsg").textContent, /keine Aufgaben gefunden/);
 });
 
 test("zeigt in der Zusammenfassung nur Ereignisse des gewählten Zeitraums", () => {
@@ -404,4 +514,257 @@ test("zeigt in der Zusammenfassung nur Ereignisse des gewählten Zeitraums", () 
   app.element("days").onchange();
   assert.equal(app.element("stitle").textContent, "Die letzten 30 Tage");
   assert.equal(summary.children[5].children.some(item => item.textContent.includes("Altes Ereignis")), true);
+});
+
+test("legt Aufgaben über das Formular an und weist leere Titel zurück", () => {
+  const app = loadBoard(createApp());
+  const form = app.element("f");
+  const title = app.element("t");
+  const due = app.element("d");
+  const effort = app.element("e");
+
+  title.value = "   ";
+  form.onsubmit(submitEvent());
+  assert.equal(app.Kanban.state.tasks.length, 0);
+  assert.match(app.element("msg").textContent, /Bitte eine Aufgabe eingeben/);
+
+  title.value = "  Automatisierte Aufgabe  ";
+  app.element("p").value = "hoch";
+  due.value = "2026-10-12";
+  effort.value = "16";
+  form.onsubmit(submitEvent());
+
+  const created = app.Kanban.state.tasks[0];
+  assert.equal(created.t, "Automatisierte Aufgabe");
+  assert.equal(created.c, "todo");
+  assert.equal(created.p, "hoch");
+  assert.equal(created.due, "2026-10-12");
+  assert.equal(created.e, 16);
+  assert.equal(title.value, "");
+  assert.equal(effort.value, "1");
+  assert.equal(app.element("b").children.length, 3);
+  assert.equal(cardFor(app, "Automatisierte Aufgabe") !== null, true);
+});
+
+test("verhindert unvollständige Termine und kann das Datumsfeld zurücksetzen", () => {
+  const app = loadBoard(createApp());
+  app.element("t").value = "Mit Termin";
+  app.element("d").validity.badInput = true;
+
+  app.element("f").onsubmit(submitEvent());
+  assert.equal(app.Kanban.state.tasks.length, 0);
+  assert.match(app.element("msg").textContent, /nur teilweise ausgefüllt/);
+
+  app.element("msg").children[0].onclick();
+  assert.equal(app.element("msg").hidden, true);
+  assert.equal(app.element("d").validity.badInput, false);
+  app.element("f").onsubmit(submitEvent());
+  assert.equal(app.Kanban.state.tasks.length, 1);
+  assert.equal(app.Kanban.state.tasks[0].due, "");
+});
+
+test("bearbeitet Aufgaben und verwirft Änderungen beim Abbrechen", () => {
+  const item = task(60, { t: "Unverändert" });
+  const app = loadBoard(createApp({ storage: { kanban: JSON.stringify([item]) } }));
+
+  actionButton(cardFor(app, "Unverändert"), "✎").onclick();
+  assert.equal(app.element("edlg").open, true);
+  app.element("et").value = "Nicht gespeichert";
+  app.element("ecancel").onclick();
+  assert.equal(item.t, "Unverändert");
+
+  actionButton(cardFor(app, "Unverändert"), "✎").onclick();
+  app.element("et").value = "Gespeichert";
+  app.element("ep").value = "niedrig";
+  app.element("ed").value = "2026-10-20";
+  app.element("ee").value = "4";
+  app.element("ef").onsubmit(submitEvent());
+
+  const updated = app.Kanban.state.tasks[0];
+  assert.equal(updated.t, "Gespeichert");
+  assert.equal(updated.p, "niedrig");
+  assert.equal(updated.due, "2026-10-20");
+  assert.equal(updated.e, 4);
+  assert.equal(app.element("edlg").open, false);
+});
+
+test("verschiebt Aufgaben über Pfeile und Drag-and-drop und löscht mit Undo", () => {
+  const item = task(61, { t: "Bewegen" });
+  const app = loadBoard(createApp({ storage: { kanban: JSON.stringify([item]) } }));
+  const storedItem = app.Kanban.state.tasks[0];
+
+  actionButton(cardFor(app, "Bewegen"), "→").onclick();
+  assert.equal(storedItem.c, "doing");
+  assert.equal(app.Kanban.state.log.at(-1).k, "start");
+
+  const card = cardFor(app, "Bewegen");
+  card.ondragstart();
+  app.element("b").children[2].ondrop({ preventDefault() {} });
+  assert.equal(storedItem.c, "done");
+  assert.equal(app.Kanban.state.log.at(-1).k, "done");
+
+  actionButton(cardFor(app, "Bewegen"), "✕").onclick();
+  assert.equal(app.Kanban.state.tasks.length, 0);
+  assert.equal(app.element("toast").hidden, false);
+  assert.equal(app.timers.size, 1);
+  app.element("tundo").onclick();
+  assert.equal(app.Kanban.state.tasks.length, 1);
+  assert.equal(storedItem.c, "done");
+  assert.equal(app.element("toast").hidden, true);
+  assert.equal(app.timers.size, 0);
+});
+
+test("lässt gelöschte Aufgabe nach Ablauf des Undo-Zeitfensters gelöscht", () => {
+  const item = task(62, { t: "Undo läuft ab" });
+  const app = loadBoard(createApp({ storage: { kanban: JSON.stringify([item]) } }));
+
+  actionButton(cardFor(app, item.t), "✕").onclick();
+  const timer = [...app.timers.values()][0];
+  assert.equal(timer.delay, 10000);
+  timer.callback();
+
+  assert.equal(app.Kanban.state.tasks.length, 0);
+  assert.equal(app.element("toast").hidden, true);
+  assert.equal(app.Kanban.undoDelete(), false);
+});
+
+test("speichert geänderte Einstellungen dauerhaft", () => {
+  const app = loadBoard(createApp());
+
+  app.element("buf").value = "3";
+  app.element("buf").onchange();
+  app.element("age").value = "0";
+  app.element("age").onchange();
+
+  assert.equal(app.Kanban.state.buffer, 3);
+  assert.equal(app.Kanban.state.step, 0);
+  assert.equal(app.storedValues.get("kanban_buf"), "3");
+  assert.equal(app.storedValues.get("kanban_age"), "0");
+  assert.equal(app.element("buf").value, 3);
+});
+
+test("stellt gespeicherte Aufgaben nach einer simulierten Browser-Neuladung wieder her", () => {
+  const first = loadBoard(createApp());
+  first.element("t").value = "Bleibt erhalten";
+  first.element("e").value = "2.5";
+  first.element("f").onsubmit(submitEvent());
+
+  const reloaded = createApp({ storage: Object.fromEntries(first.storedValues) });
+
+  assert.equal(reloaded.Kanban.state.tasks.length, 1);
+  assert.equal(reloaded.Kanban.state.tasks[0].t, "Bleibt erhalten");
+  assert.equal(reloaded.Kanban.state.tasks[0].e, 2.5);
+});
+
+test("weist kollidierenden Import-IDs neue freie IDs zu", async () => {
+  const app = createApp();
+  app.load("backup.js");
+  app.Kanban.state.tasks = [task(70, { t: "Schon da" }), task(71, { t: "ID belegt" })];
+  app.Kanban.initBackup(() => {});
+  const file = {
+    size: 100,
+    text: async () => JSON.stringify({ tasks: [{ ...task(70), t: "Importiert" }] })
+  };
+  const input = app.element("impfile");
+  input.files = [file];
+
+  await input.onchange({ target: input });
+  await input.onchange({ target: input });
+
+  assert.equal(app.Kanban.state.tasks.length, 3);
+  assert.equal(app.Kanban.state.tasks[2].id, 72);
+  assert.equal(app.Kanban.state.tasks[2].t, "Importiert");
+  assert.match(app.element("dmsg").textContent, /0 Aufgaben hinzugefügt, 1 schon vorhanden/);
+});
+
+test("überspringt denselben Import bei wiederholtem Import ohne ID-Kollision", async () => {
+  const app = createApp();
+  app.load("backup.js");
+  app.Kanban.initBackup(() => {});
+  const input = app.element("impfile");
+  input.files = [{
+    size: 100,
+    text: async () => JSON.stringify({ tasks: [task(73, { t: "Importiert" })] })
+  }];
+
+  await input.onchange({ target: input });
+  await input.onchange({ target: input });
+
+  assert.equal(app.Kanban.state.tasks.length, 1);
+  assert.match(app.element("dmsg").textContent, /0 Aufgaben hinzugefügt, 1 schon vorhanden/);
+});
+
+test("importiert eine Sicherung in ein frisches Profil und erhält Aufgaben, Verlauf und Einstellungen", async () => {
+  const source = createApp();
+  source.load("backup.js");
+  source.Kanban.state.tasks = [task(80, { t: "Roundtrip", due: "2026-10-15" })];
+  source.Kanban.state.log = [{ ts: FIXED_NOW, k: "add", t: "Roundtrip" }];
+  source.Kanban.state.buffer = 5;
+  source.Kanban.state.step = 3;
+  const exported = [];
+  source.sandbox.claude = {
+    use: async () => ({ save: async payload => exported.push(payload.data) })
+  };
+  source.Kanban.initBackup(() => {});
+  await source.element("exp").onclick();
+
+  const target = createApp();
+  target.load("backup.js");
+  target.Kanban.initBackup(() => {});
+  const input = target.element("impfile");
+  input.files = [{ size: exported[0].length, text: async () => exported[0] }];
+  await input.onchange({ target: input });
+
+  assert.equal(target.Kanban.state.tasks.length, 1);
+  assert.equal(target.Kanban.state.tasks[0].t, "Roundtrip");
+  assert.equal(target.Kanban.state.log.some(event => event.t === "Roundtrip"), true);
+  assert.equal(target.Kanban.state.buffer, 5);
+  assert.equal(target.Kanban.state.step, 3);
+});
+
+test("zeigt Zusammenfassung bei ungültigem Zeitraum begrenzt und mit leerem Verlauf korrekt an", () => {
+  const app = createApp();
+  app.load("summary.js");
+  app.Kanban.state.log = [];
+  app.Kanban.state.tasks = [];
+  app.Kanban.initSummary();
+
+  app.element("days").value = "invalid";
+  app.element("sumbtn").onclick();
+
+  assert.equal(app.element("days").value, 1);
+  assert.equal(app.element("stitle").textContent, "Die letzten 24 Stunden");
+  assert.equal(app.element("sum").children.at(-1).textContent, "In den letzten 24 Stunden ist nichts passiert.");
+
+  app.element("days").value = "365";
+  app.element("days").onchange();
+  assert.equal(app.element("days").value, 30);
+  assert.equal(app.element("stitle").textContent, "Die letzten 30 Tage");
+});
+
+test("ignoriert ungültige Import-Einstellungen und rendert HTML-ähnliche Texte als Text", async () => {
+  const app = loadBoard(createApp());
+  app.load("backup.js");
+  app.Kanban.initBackup(() => {});
+  const unsafeText = '<img src=x onerror="alert(1)">';
+  const input = app.element("impfile");
+  input.files = [{
+    size: 200,
+    text: async () => JSON.stringify({
+      tasks: [task(90, { t: unsafeText })],
+      log: [{ ts: FIXED_NOW, k: "add", t: unsafeText }],
+      settings: { buffer: -1, step: 366 }
+    })
+  }];
+  await input.onchange({ target: input });
+
+  assert.equal(app.Kanban.state.buffer, 1);
+  assert.equal(app.Kanban.state.step, 7);
+  app.load("board.js");
+  assert.equal(cardFor(app, unsafeText).children[0].children[0].textContent, unsafeText);
+
+  app.element("sumbtn").onclick();
+  const history = app.element("sum").children.at(-1);
+  assert.equal(history.children[0].textContent.includes(unsafeText), true);
+  assert.equal(history.children[0].innerHTML || "", "");
 });
