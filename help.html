@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hilfe – Kanban-Board</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <main class="helppage">
+    <h1>❓ Hilfe</h1>
+    <div class="help">
+      <h2>Aufgabe anlegen</h2>
+      <p>Text eingeben, Priorität wählen, optional Zieltermin und geschätzten Aufwand in Stunden angeben, dann
+        „Hinzufügen“. Die Aufgabe landet in „Zu erledigen“.</p>
+      <h2>Verschieben und löschen</h2>
+      <p>Karte mit der Maus in eine andere Spalte ziehen oder die Pfeile ← → nutzen. Mit ✎ bearbeitest du Text,
+        Priorität, Zieltermin und Aufwand einer Karte, mit ✕ löschst du sie. Eine gelöschte Aufgabe kannst du 10
+        Sekunden lang mit „Rückgängig“ zurückholen.</p>
+      <h2>Reihenfolge in „Zu erledigen“ und „In Arbeit“</h2>
+      <ol>
+        <li>Aufgaben, deren spätester Start verpasst ist, stehen ganz oben.</li>
+        <li>Dann zählt die Priorität. Je länger eine Aufgabe wartet, desto höher steigt sie (Alterung).</li>
+        <li>Danach der späteste Start, Aufgaben ohne Termin stehen dahinter.</li>
+        <li>Zuletzt der Zeitpunkt der Ablage, ältere zuerst.</li>
+      </ol>
+      <h2>Spätester Start</h2>
+      <p>Termin minus benötigte Arbeitstage plus Sicherheitspuffer. 8 Stunden Aufwand zählen als 1 Arbeitstag, Samstag
+        und Sonntag zählen nicht. Feiertage kennt die Seite nicht.</p>
+      <h2>Erledigt</h2>
+      <p>Die zuletzt erledigte Aufgabe steht oben. Schiebst du eine Karte zurück, beginnt ihre Wartezeit neu.</p>
+      <h2>Zusammenfassung 📊</h2>
+      <p>Zeigt, was in den letzten Tagen angelegt, gestartet, erledigt, zurückgeschoben und gelöscht wurde, dazu den
+        aktuellen Stand der Spalten. Den Zeitraum gibst du im Fenster in Tagen vor (1 bis 30, voreingestellt ist 1 Tag =
+        24 Stunden). Das Protokoll dahinter behält höchstens 30 Tage und 1000 Einträge, ältere werden automatisch
+        gelöscht.</p>
+      <h2>Einstellungen ⚙️</h2>
+      <p>Hier stellst du den Sicherheitspuffer (Arbeitstage) und die Alterung (Tage pro Prioritätsstufe, 0 = aus) ein.
+      </p>
+      <h2>Sichern und wiederherstellen</h2>
+      <p>Unter ⚙️ findest du „Exportieren“ und „Importieren“. Der Export speichert Aufgaben, Protokoll und Einstellungen
+        in einer Datei. Beim Import werden die Aufgaben aus der Datei zu den vorhandenen hinzugefügt, schon vorhandene
+        werden übersprungen. Die Einstellungen aus der Datei ersetzen die aktuellen.</p>
+      <h2>Speicherung</h2>
+      <p>Alles wird nur in diesem Browser auf diesem Gerät gespeichert. Löschst du die Website-Daten oder nutzt ein
+        privates Fenster, sind die Aufgaben weg. Kann die Seite nicht speichern, erscheint oben eine rote Warnung –
+        sichere dann sofort über ⚙️ → Exportieren. Sind gespeicherte Daten beschädigt, übernimmt die Seite, was lesbar
+        ist, und legt die Originaldaten als Sicherheitskopie im Browser ab.</p>
+    </div>
+    <p><a href="index.html">← Zurück zum Board</a></p>
+  </main>
+</body>
+
+</html>

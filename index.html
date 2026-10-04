@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Kanban-Board</title>
+  <link rel="icon" type="image/png" href="Kanban.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div id="notice" class="notice" role="alert" hidden><span id="ntext"></span><button type="button" id="nclose"
+      aria-label="Hinweis schließen">✕</button></div>
+  <header>
+    <div class="top">
+      <h1>📋 Mein Kanban-Board</h1>
+      <div class="toolbar"><button type="button" id="sumbtn" class="ghost" title="Zusammenfassung"
+          aria-label="Zusammenfassung">📊</button><a href="help.html" target="_blank" rel="noopener" id="help"
+          class="ghost" title="Hilfe" aria-label="Hilfe">❓</a><button type="button" id="gear" class="ghost"
+          title="Einstellungen" aria-label="Einstellungen">⚙️</button></div>
+    </div>
+    <form id="f" novalidate>
+      <label class="field-grow">Aufgabe<input id="t" placeholder="Neue Aufgabe …" maxlength="120" required></label>
+      <label>Priorität<select id="p">
+          <option value="hoch">Hoch</option>
+          <option value="mittel" selected>Mittel</option>
+          <option value="niedrig">Niedrig</option>
+        </select></label>
+      <label>Zieltermin (optional)<input id="d" type="date"></label>
+      <label>Aufwand (Std.)<input id="e" type="number" min="0" step="0.5" value="1" class="narrow"></label>
+      <button>Hinzufügen</button>
+    </form>
+    <div id="msg" class="msg" role="alert" hidden></div>
+  </header>
+  <dialog id="dlg">
+    <h2 class="dh">⚙️ Einstellungen</h2>
+    <label class="setting">Sicherheitspuffer (Arbeitstage), gilt für alle Aufgaben mit Termin<input id="buf"
+        type="number" min="0" step="1" class="narrow"></label>
+    <label class="setting-last">Alterung: Aufgabe steigt alle … Tage um eine Prioritätsstufe (0 = aus)<input id="age"
+        type="number" min="0" step="1" class="narrow"></label>
+    <div class="data">
+      <h3>Daten sichern</h3>
+      <p>Der Export speichert Aufgaben, Protokoll und Einstellungen in einer Datei. Der Import fügt die Aufgaben aus
+        einer solchen Datei hinzu.</p>
+      <div class="erow"><button type="button" id="exp">Exportieren</button><button type="button" id="imp"
+          class="ghost">Importieren …</button></div>
+      <input type="file" id="impfile" accept=".json,application/json" hidden>
+      <div id="dmsg" class="msg" role="alert" hidden></div>
+    </div>
+    <button type="button" id="close">Fertig</button>
+  </dialog>
+  <dialog id="sdlg" class="dialog-wide">
+    <h2 class="dh">📊 <span id="stitle">Die letzten 24 Stunden</span></h2>
+    <div class="period"><label>Zeitraum in Tagen (1 bis 30)<input id="days" type="number" min="1" max="30" step="1"
+          value="1"></label></div>
+    <div class="help" id="sum"></div>
+    <button type="button" id="sclose">Schließen</button>
+  </dialog>
+  <dialog id="edlg">
+    <h2 class="dh">✎ Aufgabe bearbeiten</h2>
+    <form id="ef" novalidate>
+      <div class="efields">
+        <label>Aufgabe<input id="et" maxlength="120"></label>
+        <label>Priorität<select id="ep">
+            <option value="hoch">Hoch</option>
+            <option value="mittel">Mittel</option>
+            <option value="niedrig">Niedrig</option>
+          </select></label>
+        <label>Zieltermin (optional)<input id="ed" type="date"></label>
+        <label>Aufwand (Std.)<input id="ee" type="number" min="0" step="0.5"></label>
+      </div>
+      <div id="emsg" class="msg" role="alert" hidden></div>
+      <div class="erow"><button>Speichern</button><button type="button" id="ecancel" class="ghost">Abbrechen</button>
+      </div>
+    </form>
+  </dialog>
+  <div class="board" id="b"></div>
+  <div id="toast" class="toast" role="status" hidden><span id="ttext"></span><button type="button"
+      id="tundo">Rückgängig</button></div>
+  <script src="src/dates.js"></script>
+  <script src="src/sort.js"></script>
+  <script src="src/storage.js"></script>
+  <script src="src/task.js"></script>
+  <script src="src/backup.js"></script>
+  <script src="src/summary.js"></script>
+  <script src="src/board.js"></script>
+</body>
+
+</html>

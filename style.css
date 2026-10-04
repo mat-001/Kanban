@@ -1,0 +1,464 @@
+:root {
+    --bg: #f4f5f7;
+    --col: #e8eaee;
+    --card: #fff;
+    --tx: #1d2330;
+    --mut: #566074;
+    --ac: #3b5bdb;
+    --bd: #d5d9e0;
+    --bd-ctl: #7f879b;
+    --hi: #c92a2a;
+    --mid: #c76a00;
+    --lo: #2f9e44;
+    --ok: #237a36;
+    --on-ac: #fff;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px)
+}
+
+@media (prefers-color-scheme:dark) {
+    :root {
+        --bg: #14171f;
+        --col: #1d212c;
+        --card: #272c3a;
+        --tx: #e8eaf0;
+        --mut: #8f97aa;
+        --ac: #7c93f5;
+        --bd: #363c4e;
+        --bd-ctl: #6f7890;
+        --hi: #ff8787;
+        --mid: #ffa94d;
+        --lo: #51cf66;
+        --ok: #69db7c;
+        --on-ac: #14171f
+    }
+}
+
+* {
+    box-sizing: border-box
+}
+
+::placeholder {
+    color: var(--mut);
+    opacity: 1
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--tx);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif
+}
+
+header {
+    padding: 20px 20px 8px
+}
+
+.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px
+}
+
+h1 {
+    margin: 0;
+    font-size: 1.4rem
+}
+
+.ghost {
+    background: transparent;
+    border: 1px solid var(--bd-ctl);
+    font-size: 1.2rem;
+    padding: 6px 10px
+}
+
+dialog {
+    border: 1px solid var(--bd);
+    border-radius: 12px;
+    background: var(--card);
+    color: var(--tx);
+    padding: 20px;
+    max-width: 360px;
+    width: 90%
+}
+
+.help h3 {
+    margin: 12px 0 4px;
+    font-size: .95rem
+}
+
+.help p,
+.help li {
+    margin: 0 0 4px;
+    font-size: .9rem;
+    line-height: 1.45;
+    color: var(--mut)
+}
+
+.help ul,
+.help ol {
+    margin: 0;
+    padding-left: 20px
+}
+
+.help {
+    max-height: 60vh;
+    overflow-y: auto;
+    margin-bottom: 14px
+}
+
+dialog::backdrop {
+    background: rgba(0, 0, 0, .45)
+}
+
+form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: end
+}
+
+label {
+    display: flex;
+    flex-direction: column;
+    font-size: .75rem;
+    color: var(--mut);
+    gap: 2px
+}
+
+input,
+select {
+    padding: 9px 10px;
+    border: 1px solid var(--bd-ctl);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--tx);
+    font-size: 1rem
+}
+
+#t {
+    min-width: 220px;
+    width: 100%
+}
+
+button {
+    cursor: pointer;
+    border: 0;
+    border-radius: 8px;
+    background: var(--ac);
+    color: var(--on-ac);
+    padding: 10px 16px;
+    font-size: 1rem
+}
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(260px, 1fr));
+    gap: 16px;
+    padding: 12px 20px 24px;
+    overflow-x: auto
+}
+
+.col {
+    background: var(--col);
+    border-radius: 12px;
+    padding: 12px;
+    min-height: 300px
+}
+
+.col.over {
+    outline: 2px dashed var(--ac)
+}
+
+.col h2 {
+    font-size: .95rem;
+    margin: 0 0 2px;
+    display: flex;
+    justify-content: space-between
+}
+
+.col h2 span {
+    color: var(--mut);
+    font-weight: 400
+}
+
+.sub {
+    font-size: .72rem;
+    color: var(--mut);
+    margin-bottom: 10px
+}
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--bd);
+    border-left: 5px solid var(--mid);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    cursor: grab;
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+    word-break: break-word
+}
+
+.card.hoch {
+    border-left-color: var(--hi)
+}
+
+.card.niedrig {
+    border-left-color: var(--lo)
+}
+
+.card.drag {
+    opacity: .4
+}
+
+.meta {
+    font-size: .72rem;
+    color: var(--mut);
+    margin-top: 4px;
+    line-height: 1.4
+}
+
+.late {
+    color: var(--hi);
+    font-weight: 600
+}
+
+.mv {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    align-items: flex-start
+}
+
+.mv button {
+    background: transparent;
+    color: var(--mut);
+    padding: 2px 6px;
+    font-size: .95rem;
+    border: 1px solid var(--bd-ctl)
+}
+
+.mv button:hover {
+    color: var(--ac);
+    border-color: var(--ac)
+}
+
+.empty {
+    color: var(--mut);
+    font-size: .85rem;
+    text-align: center;
+    padding: 16px 0
+}
+
+/* Aus Inline-Styles ausgelagert */
+.toolbar {
+    display: flex;
+    gap: 8px
+}
+
+.field-grow {
+    flex: 1
+}
+
+.narrow {
+    width: 100px
+}
+
+.setting {
+    margin-bottom: 12px
+}
+
+.setting-last {
+    margin-bottom: 16px
+}
+
+.dialog-wide {
+    max-width: 520px
+}
+
+/* Hilfeseite */
+a.ghost {
+    text-decoration: none;
+    color: var(--tx);
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center
+}
+
+.helppage {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 20px
+}
+
+.helppage .help {
+    max-height: none;
+    overflow: visible
+}
+
+.helppage a {
+    color: var(--ac)
+}
+
+/* Einheitliche Höhe für Felder und Knöpfe im Formular */
+form input,
+form select,
+form button {
+    height: 42px;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1.2
+}
+
+
+/* Meldung unter dem Formular */
+.msg {
+    margin-top: 8px;
+    color: var(--hi);
+    font-size: .85rem
+}
+
+.msg button {
+    height: auto;
+    background: none;
+    border: 0;
+    color: var(--ac);
+    padding: 0;
+    text-decoration: underline;
+    font-size: .85rem;
+    cursor: pointer
+}
+
+/* Bearbeiten-Fenster */
+.dh {
+    margin: 0 0 12px;
+    font-size: 1.1rem
+}
+
+.efields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px
+}
+
+.efields input,
+.efields select {
+    width: 100%
+}
+
+.erow {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px
+}
+
+.erow .ghost {
+    color: var(--tx);
+    font-size: 1rem
+}
+
+/* Export und Import */
+.data {
+    border-top: 1px solid var(--bd);
+    padding-top: 12px;
+    margin: 4px 0 16px
+}
+
+.data h3 {
+    margin: 0 0 6px;
+    font-size: .95rem
+}
+
+.data p {
+    margin: 0 0 10px;
+    font-size: .8rem;
+    color: var(--mut)
+}
+
+.data .erow {
+    margin-top: 0
+}
+
+.data button {
+    padding: 8px 14px;
+    font-size: .95rem
+}
+
+.msg.ok {
+    color: var(--ok)
+}
+
+/* Zeitraum der Zusammenfassung */
+.period {
+    margin-bottom: 12px
+}
+
+.period input {
+    width: 100px
+}
+
+/* Hinweisleiste und Rückgängig-Meldung */
+.notice {
+    margin: 12px 20px 0;
+    padding: 10px 12px;
+    border: 1px solid var(--hi);
+    border-left-width: 5px;
+    border-radius: 8px;
+    background: var(--card);
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    align-items: flex-start;
+    font-size: .9rem
+}
+
+.notice.info {
+    border-color: var(--ac)
+}
+
+.notice button {
+    background: transparent;
+    color: var(--mut);
+    border: 1px solid var(--bd);
+    padding: 2px 8px;
+    font-size: .9rem;
+    flex-shrink: 0
+}
+
+.toast {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    max-width: 90%;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    background: var(--tx);
+    color: var(--bg);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: .9rem;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .3);
+    z-index: 10
+}
+
+.toast button {
+    background: transparent;
+    color: var(--bg);
+    border: 1px solid currentColor;
+    padding: 4px 10px;
+    font-size: .9rem
+}
+
+.notice[hidden],
+.toast[hidden] {
+    display: none
+}
