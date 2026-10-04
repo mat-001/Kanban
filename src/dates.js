@@ -1,5 +1,7 @@
 (function (Kanban) {
   const DAY_MS = 864e5;
+  const MAX_EFFORT = 1000; // Stunden pro Aufgabe
+  const MAX_SETTING = 365; // Tage für Sicherheitspuffer und Alterung
 
   const fmt = timestamp => new Date(timestamp).toLocaleString("de-DE", {
     day: "2-digit",
@@ -16,20 +18,30 @@
     String(date.getDate()).padStart(2, "0");
   const ageDays = task => Math.floor((Date.now() - (task.since || task.created)) / DAY_MS);
   const isWorkday = date => date.getDay() !== 0 && date.getDay() !== 6;
+  const clampEffort = value => Math.min(MAX_EFFORT, Math.max(0, Number.isFinite(value) ? value : 0));
+  const clampSetting = value => Math.min(MAX_SETTING, Math.max(0, Number.isFinite(value) ? Math.trunc(value) : 0));
 
   function lastStart(task, buffer) {
     if (!task.due) return null;
 
-    const workdays = Math.max(1, Math.ceil((task.e || 0) / 8)) + buffer;
+    // Die Werte werden hier noch einmal begrenzt, damit die Rechenzeit nie von ihnen abhängt.
+    const workdays = Math.max(1, Math.ceil(clampEffort(task.e) / 8)) + clampSetting(buffer);
     const date = new Date(task.due + "T00:00");
-    let counted = 0;
 
-    while (counted < workdays) {
-      if (isWorkday(date)) counted++;
-      if (counted < workdays) date.setDate(date.getDate() - 1);
+    // Der Termin zählt als erster Arbeitstag; fällt er auf ein Wochenende, beginnt die Zählung am Freitag davor.
+    while (!isWorkday(date)) date.setDate(date.getDate() - 1);
+
+    // Je 5 weitere Arbeitstage sind genau eine Kalenderwoche; nur der Rest wird einzeln zurückgezählt.
+    const remaining = workdays - 1;
+    date.setDate(date.getDate() - Math.floor(remaining / 5) * 7);
+    for (let step = 0; step < remaining % 5; step++) {
+      do date.setDate(date.getDate() - 1); while (!isWorkday(date));
     }
     return ymd(date);
   }
 
-  Object.assign(Kanban, { fmt, fmtD, today, ymd, ageDays, lastStart });
+  Object.assign(Kanban, {
+    fmt, fmtD, today, ymd, ageDays, lastStart,
+    MAX_EFFORT, MAX_SETTING, clampEffort, clampSetting
+  });
 })(window.Kanban ||= {});

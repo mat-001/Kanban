@@ -768,3 +768,123 @@ test("ignoriert ungültige Import-Einstellungen und rendert HTML-ähnliche Texte
   assert.equal(history.children[0].textContent.includes(unsafeText), true);
   assert.equal(history.children[0].innerHTML || "", "");
 });
+
+// ---------------------------------------------------------------------------
+// Obergrenzen und Rechenzeit (verhindert, dass riesige Werte die Seite einfrieren)
+// ---------------------------------------------------------------------------
+
+// Alte, langsame Fassung von lastStart: zählt Tag für Tag. Dient als Referenz für die schnelle Rechnung.
+function referenceLastStart(task, buffer) {
+  const workdays = Math.max(1, Math.ceil((task.e || 0) / 8)) + buffer;
+  const date = new Date(`${task.due}T00:00`);
+  let counted = 0;
+  while (counted < workdays) {
+    if (date.getDay() !== 0 && date.getDay() !== 6) counted++;
+    if (counted < workdays) date.setDate(date.getDate() - 1);
+  }
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+test("lastStart liefert dieselben Tage wie die zählende Referenz (alle Wochentage, Sommerzeitwechsel)", () => {
+  const { Kanban } = createApp();
+  const efforts = [0, 0.5, 1, 8, 8.1, 16, 17, 40, 100, 400];
+  const first = new Date(2026, 0, 1).getTime();
+  let checked = 0;
+
+  for (let day = 0; day < 400; day++) {
+    const due = new Date(first + day * DAY_MS);
+    const dueText = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}`;
+    for (const e of efforts) {
+      for (let buffer = 0; buffer <= 20; buffer++) {
+        assert.equal(Kanban.lastStart({ due: dueText, e }, buffer), referenceLastStart({ due: dueText, e }, buffer),
+          `Termin ${dueText}, Aufwand ${e}, Puffer ${buffer}`);
+        checked++;
+      }
+    }
+  }
+  assert.ok(checked > 80000);
+});
+
+test("lastStart rechnet auch mit absurd großen Werten sofort und verwendet die Obergrenzen", () => {
+  const { Kanban } = createApp();
+  const started = process.hrtime.bigint();
+  const huge = Kanban.lastStart({ due: "2026-10-12", e: 1e300 }, 1e9);
+  const infinite = Kanban.lastStart({ due: "2026-10-12", e: Infinity }, Infinity);
+  const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
+
+  assert.ok(elapsedMs < 50, `dauerte ${elapsedMs} ms`);
+  assert.equal(huge, Kanban.lastStart({ due: "2026-10-12", e: Kanban.MAX_EFFORT }, Kanban.MAX_SETTING));
+  assert.equal(huge, referenceLastStart({ due: "2026-10-12", e: Kanban.MAX_EFFORT }, Kanban.MAX_SETTING));
+  assert.equal(infinite, Kanban.lastStart({ due: "2026-10-12", e: 0 }, 0));
+});
+
+test("begrenzt Aufwand und Einstellungen beim Laden aus dem Speicher", () => {
+  const { Kanban } = createApp({
+    storage: {
+      kanban: JSON.stringify([{ id: 1, t: "Riesig", e: 1e300 }]),
+      kanban_buf: "1000000",
+      kanban_age: "99999"
+    }
+  });
+
+  assert.equal(Kanban.state.tasks[0].e, Kanban.MAX_EFFORT);
+  assert.equal(Kanban.state.buffer, Kanban.MAX_SETTING);
+  assert.equal(Kanban.state.step, Kanban.MAX_SETTING);
+  assert.equal(Kanban.clampEffort(NaN), 0);
+  assert.equal(Kanban.clampSetting(-5), 0);
+  assert.equal(Kanban.clampSetting(2.9), 2);
+});
+
+test("begrenzt den Aufwand importierter Aufgaben", async () => {
+  const app = createApp();
+  app.load("backup.js");
+  app.Kanban.initBackup(() => {});
+  const input = app.element("impfile");
+  input.files = [{ size: 100, text: async () => JSON.stringify({ tasks: [task(95, { e: 1e300 })] }) }];
+
+  await input.onchange({ target: input });
+
+  assert.equal(app.Kanban.state.tasks[0].e, app.Kanban.MAX_EFFORT);
+});
+
+test("lehnt zu großen Aufwand im Formular und im Bearbeiten-Fenster ab", () => {
+  const item = task(96, { t: "Bearbeiten" });
+  const app = loadBoard(createApp({ storage: { kanban: JSON.stringify([item]) } }));
+  assert.equal(app.element("e").max, app.Kanban.MAX_EFFORT);
+  assert.equal(app.element("ee").max, app.Kanban.MAX_EFFORT);
+
+  app.element("t").value = "Zu groß";
+  app.element("e").value = "1001";
+  app.element("f").onsubmit(submitEvent());
+  assert.equal(app.Kanban.state.tasks.length, 1);
+  assert.match(app.element("msg").textContent, /höchstens 1000 Stunden/);
+  assert.equal(app.element("e").focused, true);
+
+  app.element("e").value = "1000";
+  app.element("f").onsubmit(submitEvent());
+  assert.equal(app.Kanban.state.tasks.length, 2);
+  assert.equal(app.Kanban.state.tasks[1].e, 1000);
+
+  actionButton(cardFor(app, "Bearbeiten"), "✎").onclick();
+  app.element("ee").value = "1e300";
+  app.element("ef").onsubmit(submitEvent());
+  assert.match(app.element("emsg").textContent, /höchstens 1000 Stunden/);
+  assert.equal(app.element("edlg").open, true);
+  assert.equal(app.Kanban.state.tasks[0].e, 8, "der alte Wert bleibt erhalten");
+});
+
+test("begrenzt Sicherheitspuffer und Alterung in den Einstellungen auf 365 Tage", () => {
+  const app = loadBoard(createApp());
+  assert.equal(app.element("buf").max, app.Kanban.MAX_SETTING);
+
+  app.element("buf").value = "1000000000";
+  app.element("buf").onchange();
+  app.element("age").value = "366";
+  app.element("age").onchange();
+
+  assert.equal(app.Kanban.state.buffer, 365);
+  assert.equal(app.Kanban.state.step, 365);
+  assert.equal(app.element("buf").value, 365);
+  assert.equal(app.storedValues.get("kanban_buf"), "365");
+  assert.equal(app.storedValues.get("kanban_age"), "365");
+});

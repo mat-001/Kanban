@@ -73,6 +73,7 @@ Die Regeln sind in `src/dates.js` und `src/sort.js` umgesetzt.
 | L-07 | P1 | Aufgaben ohne Termin und Aufgaben mit gleichem Startdatum vergleichen | Aufgaben ohne Termin stehen bei ansonsten gleichen Kriterien dahinter; danach gilt die Ablage-Reihenfolge. |
 | L-08 | P1 | Aufgaben in „Erledigt“ verschieben | Neu erledigte Aufgabe steht oben; Erledigungszeit wird angezeigt. |
 | L-09 | P1 | Aufgabe von „In Arbeit“ zurück nach „Zu erledigen“ verschieben | Die Wartezeit beginnt gemäß Beschreibung in der Hilfe neu. **Diesen Fall gezielt prüfen:** Die Logik für `since` in `src/task.js` setzt den Wert derzeit nur beim Zurückholen einer erledigten Aufgabe. |
+| L-10 | P0 | Aufwand `1e300` im Formular, im Bearbeiten-Fenster, im Import und in bereits gespeicherten Daten; Puffer `1000000000` in den Einstellungen | Formular und Bearbeiten lehnen mit Meldung ab; Laden, Import und Einstellungen begrenzen auf 1000 Stunden bzw. 365 Tage; die Seite bleibt sofort bedienbar. |
 
 ### 4. Speicherung, Import und Export
 
@@ -91,7 +92,7 @@ Persistenz- und Bereinigungslogik liegt in `src/storage.js`; Import und Export i
 | D-09 | P1 | Import mit ungültigen Aufgaben, ungültigem Verlauf und ungültigen Einstellungen | Ungültige Einträge werden kontrolliert übersprungen; gültige Daten bleiben nutzbar. |
 | D-10 | P1 | Exportieren und anschließend wieder importieren | Roundtrip erhält alle gültigen Aufgaben, Verlaufseinträge und Einstellungen. |
 
-**Zu klärender Grenzfall für D-10:** Der Import akzeptiert Einstellungen nur bis `365`, die Einstellungsfelder selbst haben aber keine entsprechende Obergrenze. Es sollte festgelegt werden, ob Werte über `365` zulässig sind oder beim Einstellen begrenzt werden.
+**Geklärt (D-10):** Puffer und Alterung sind überall auf höchstens `365` Tage begrenzt (Einstellungen, Laden, Import), der Aufwand einer Aufgabe auf höchstens `1000` Stunden. Die Grenzen stehen als `MAX_SETTING` und `MAX_EFFORT` in `src/dates.js`.
 
 ### 5. Zusammenfassung, Sicherheit und Barrierefreiheit
 

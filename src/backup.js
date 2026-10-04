@@ -1,5 +1,5 @@
 (function (Kanban) {
-  const { ymd } = Kanban;
+  const { ymd, MAX_SETTING } = Kanban;
   const { cleanTask, LBL, pruneLog, save, saveLog, saveSetting, state } = Kanban;
   const $ = id => document.getElementById(id);
 
@@ -100,7 +100,7 @@
   }
 
   function importSettings(settings) {
-    const validSetting = value => Number.isInteger(value) && value >= 0 && value <= 365;
+    const validSetting = value => Number.isInteger(value) && value >= 0 && value <= MAX_SETTING;
     const values = [
       ["buffer", "buf"],
       ["step", "age"]

@@ -1,5 +1,6 @@
 (function (Kanban) {
   const { ageDays, fmt, fmtD, lastStart, today } = Kanban;
+  const { MAX_EFFORT, MAX_SETTING, clampEffort, clampSetting } = Kanban;
   const { COLS, effRank, RANK, sorter } = Kanban;
   const { saveSetting, state } = Kanban;
   const { addTask, deleteTask, dismissUndo, moveTask, undoDelete, updateTask } = Kanban;
@@ -215,6 +216,12 @@
       showMessage("Der Zieltermin ist nur teilweise ausgefüllt. Bitte vollständig eingeben oder", "Termin leeren");
       return;
     }
+    const effort = parseFloat($("e").value) || 0;
+    if (effort > MAX_EFFORT) {
+      showMessage(`Der Aufwand darf höchstens ${MAX_EFFORT} Stunden betragen.`);
+      $("e").focus();
+      return;
+    }
 
     const now = Date.now();
     addTask({
@@ -224,7 +231,7 @@
       p: $("p").value,
       created: now,
       due: dueInput.value,
-      e: Math.max(0, parseFloat($("e").value) || 0)
+      e: clampEffort(effort)
     });
     titleInput.value = "";
     resetDate();
@@ -236,7 +243,7 @@
     const input = $(inputId);
     input.value = state[key];
     input.onchange = () => {
-      state[key] = Math.max(0, parseInt(input.value, 10) || 0);
+      state[key] = clampSetting(parseInt(input.value, 10) || 0);
       input.value = state[key];
       if (!saveSetting(key, state[key])) {
         showNotice(
@@ -250,6 +257,10 @@
       render();
     };
   }
+
+  // Obergrenzen auch im Formular sichtbar machen (die Prüfung im Skript bleibt maßgeblich)
+  $("e").max = $("ee").max = MAX_EFFORT;
+  $("buf").max = $("age").max = MAX_SETTING;
 
   initSetting("buffer", "buf");
   initSetting("step", "age");
@@ -310,11 +321,18 @@
       return;
     }
 
+    const effort = parseFloat($("ee").value) || 0;
+    if (effort > MAX_EFFORT) {
+      showMessage(`Der Aufwand darf höchstens ${MAX_EFFORT} Stunden betragen.`, "", "emsg", "ed");
+      $("ee").focus();
+      return;
+    }
+
     updateTask(editing, {
       t: title,
       p: $("ep").value,
       due: $("ed").value,
-      e: Math.max(0, parseFloat($("ee").value) || 0)
+      e: clampEffort(effort)
     });
     render();
     editDialog.close();
