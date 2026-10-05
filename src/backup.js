@@ -76,9 +76,9 @@
 
     (Array.isArray(entries) ? entries : []).forEach(event => {
       if (!event ||
-          !Number.isFinite(event.ts) ||
-          typeof event.t !== "string" ||
-          !Object.hasOwn(LBL, event.k)) return;
+        !Number.isFinite(event.ts) ||
+        typeof event.t !== "string" ||
+        !Object.hasOwn(LBL, event.k)) return;
 
       const cleanEvent = { ts: event.ts, k: event.k, t: event.t.slice(0, 60) };
       const key = eventKey(cleanEvent);

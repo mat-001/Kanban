@@ -8,6 +8,52 @@ const projectRoot = path.resolve(__dirname, "..");
 const DAY_MS = 864e5;
 const FIXED_NOW = new Date(2026, 9, 4, 12).getTime();
 
+function findScriptPath(filename) {
+  const directPath = path.join(projectRoot, "src", filename);
+  if (fs.existsSync(directPath) && fs.statSync(directPath).isFile()) {
+    return directPath;
+  }
+
+  const rootDirectPath = path.join(projectRoot, filename);
+  if (fs.existsSync(rootDirectPath) && fs.statSync(rootDirectPath).isFile()) {
+    return rootDirectPath;
+  }
+
+  function searchDir(dir) {
+    if (!fs.existsSync(dir)) return null;
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        const found = searchDir(fullPath);
+        if (found) return found;
+      } else if (entry.isFile()) {
+        if (entry.name === filename || fullPath.endsWith(path.sep + filename) || fullPath.endsWith("/" + filename)) {
+          return fullPath;
+        }
+      }
+    }
+    return null;
+  }
+
+  return searchDir(path.join(projectRoot, "src")) || searchDir(projectRoot);
+}
+
+function getAllFiles(dir) {
+  if (!fs.existsSync(dir)) return [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  let files = [];
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files = files.concat(getAllFiles(fullPath));
+    } else if (entry.isFile()) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
 function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLength = {}, patch = {} } = {}) {
   const storedValues = new Map(Object.entries({ kanban: "[]", ...storage }));
   const failedKeys = new Set(failWrites);
@@ -36,66 +82,66 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
   function makeElement(tagName = "div", id = "") {
     const classes = new Set();
     const node = {
-        tagName,
-        id,
-        hidden: false,
-        textContent: "",
-        className: "",
-        value: "",
-        type: "",
-        title: "",
-        draggable: false,
-        validity: { badInput: false },
-        files: [],
-        children: [],
-        open: false,
-        attributes: {},
-        classList: {
-          add(name) {
-            classes.add(name);
-          },
-          remove(name) {
-            classes.delete(name);
-          },
-          contains(name) {
-            return classes.has(name);
-          }
+      tagName,
+      id,
+      hidden: false,
+      textContent: "",
+      className: "",
+      value: "",
+      type: "",
+      title: "",
+      draggable: false,
+      validity: { badInput: false },
+      files: [],
+      children: [],
+      open: false,
+      attributes: {},
+      classList: {
+        add(name) {
+          classes.add(name);
         },
-        appendChild(child) {
-          this.children.push(child);
+        remove(name) {
+          classes.delete(name);
         },
-        append(...children) {
-          this.children.push(...children);
-        },
-        replaceChildren(...children) {
-          this.children = children;
-        },
-        setAttribute(name, value) {
-          this.attributes[name] = value;
-        },
-        focus() {
-          this.focused = true;
-        },
-        showModal() {
-          this.open = true;
-        },
-        close() {
-          this.open = false;
-        },
-        click() {
-          this.clicked = true;
-          if (this.tagName === "a" && this.download) {
-            downloads.push({ filename: this.download, href: this.href, blob: blobUrls.get(this.href) });
-          }
-          if (this.onclick) this.onclick();
-        },
-        remove() {
-          this.removed = true;
-        },
-        replaceWith(replacement) {
-          if (this.id) elements.set(this.id, replacement);
+        contains(name) {
+          return classes.has(name);
         }
-      };
+      },
+      appendChild(child) {
+        this.children.push(child);
+      },
+      append(...children) {
+        this.children.push(...children);
+      },
+      replaceChildren(...children) {
+        this.children = children;
+      },
+      setAttribute(name, value) {
+        this.attributes[name] = value;
+      },
+      focus() {
+        this.focused = true;
+      },
+      showModal() {
+        this.open = true;
+      },
+      close() {
+        this.open = false;
+      },
+      click() {
+        this.clicked = true;
+        if (this.tagName === "a" && this.download) {
+          downloads.push({ filename: this.download, href: this.href, blob: blobUrls.get(this.href) });
+        }
+        if (this.onclick) this.onclick();
+      },
+      remove() {
+        this.removed = true;
+      },
+      replaceWith(replacement) {
+        if (this.id) elements.set(this.id, replacement);
+      }
+    };
     Object.defineProperties(node, {
       outerHTML: {
         get() {
@@ -134,7 +180,7 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
   }
 
   const document = {
-    body: { appendChild() {} },
+    body: { appendChild() { } },
     createElement(tagName) {
       return makeElement(tagName);
     },
@@ -195,9 +241,18 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
   sandbox.window = sandbox;
 
   const load = filename => {
-    let source = fs.readFileSync(path.join(projectRoot, "src", filename), "utf8");
-    if (patch[filename]) source = patch[filename](source); // erlaubt Tests mit anderer DATA_VERSION/MIGRATIONS
-    vm.runInNewContext(source, sandbox, { filename });
+    const filePath = findScriptPath(filename);
+    if (!filePath) {
+      throw new Error(`Skriptdatei nicht gefunden: ${filename}`);
+    }
+    let source = fs.readFileSync(filePath, "utf8");
+    const baseName = path.basename(filePath);
+    if (patch[filename]) {
+      source = patch[filename](source);
+    } else if (patch[baseName]) {
+      source = patch[baseName](source);
+    }
+    vm.runInNewContext(source, sandbox, { filename: baseName });
   };
 
   ["dates.js", "sort.js", "storage.js", "task.js"].forEach(load);
@@ -220,12 +275,15 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
 function loadBoard(app) {
   app.load("backup.js");
   app.load("summary.js");
-  app.load("board.js");
+  app.load("ui-notifications.js");
+  app.load("ui-dialogs.js");
+  app.load("ui-board.js");
+  app.load("app.js");
   return app;
 }
 
 function submitEvent() {
-  return { preventDefault() {} };
+  return { preventDefault() { } };
 }
 
 function cardFor(app, title) {
@@ -426,7 +484,7 @@ test("exportiert Aufgaben, Protokoll und Einstellungen in einer Sicherung", asyn
   app.Kanban.state.buffer = 3;
   app.Kanban.state.step = 9;
   app.Kanban.state.log.push({ ts: FIXED_NOW, k: "add", t: "Aufgabe 20" });
-  app.Kanban.initBackup(() => {});
+  app.Kanban.initBackup(() => { });
   await app.element("exp").onclick();
 
   assert.equal(app.downloads.length, 1);
@@ -623,7 +681,7 @@ test("verschiebt Aufgaben über Pfeile und Drag-and-drop und löscht mit Undo", 
 
   const card = cardFor(app, "Bewegen");
   card.ondragstart();
-  app.element("b").children[2].ondrop({ preventDefault() {} });
+  app.element("b").children[2].ondrop({ preventDefault() { } });
   assert.equal(storedItem.c, "done");
   assert.equal(app.Kanban.state.log.at(-1).k, "done");
 
@@ -684,7 +742,7 @@ test("weist kollidierenden Import-IDs neue freie IDs zu", async () => {
   const app = createApp();
   app.load("backup.js");
   app.Kanban.state.tasks = [task(70, { t: "Schon da" }), task(71, { t: "ID belegt" })];
-  app.Kanban.initBackup(() => {});
+  app.Kanban.initBackup(() => { });
   const file = {
     size: 100,
     text: async () => JSON.stringify({ tasks: [{ ...task(70), t: "Importiert" }] })
@@ -704,7 +762,7 @@ test("weist kollidierenden Import-IDs neue freie IDs zu", async () => {
 test("überspringt denselben Import bei wiederholtem Import ohne ID-Kollision", async () => {
   const app = createApp();
   app.load("backup.js");
-  app.Kanban.initBackup(() => {});
+  app.Kanban.initBackup(() => { });
   const input = app.element("impfile");
   input.files = [{
     size: 100,
@@ -725,13 +783,13 @@ test("importiert eine Sicherung in ein frisches Profil und erhält Aufgaben, Ver
   source.Kanban.state.log = [{ ts: FIXED_NOW, k: "add", t: "Roundtrip" }];
   source.Kanban.state.buffer = 5;
   source.Kanban.state.step = 3;
-  source.Kanban.initBackup(() => {});
+  source.Kanban.initBackup(() => { });
   await source.element("exp").onclick();
   const exported = [await source.downloads[0].blob.text()];
 
   const target = createApp();
   target.load("backup.js");
-  target.Kanban.initBackup(() => {});
+  target.Kanban.initBackup(() => { });
   const input = target.element("impfile");
   input.files = [{ size: exported[0].length, text: async () => exported[0] }];
   await input.onchange({ target: input });
@@ -766,7 +824,7 @@ test("zeigt Zusammenfassung bei ungültigem Zeitraum begrenzt und mit leerem Ver
 test("ignoriert ungültige Import-Einstellungen und rendert HTML-ähnliche Texte als Text", async () => {
   const app = loadBoard(createApp());
   app.load("backup.js");
-  app.Kanban.initBackup(() => {});
+  app.Kanban.initBackup(() => { });
   const unsafeText = '<img src=x onerror="alert(1)">';
   const input = app.element("impfile");
   input.files = [{
@@ -781,7 +839,10 @@ test("ignoriert ungültige Import-Einstellungen und rendert HTML-ähnliche Texte
 
   assert.equal(app.Kanban.state.buffer, 1);
   assert.equal(app.Kanban.state.step, 7);
-  app.load("board.js");
+  app.load("ui-notifications.js");
+  app.load("ui-dialogs.js");
+  app.load("ui-board.js");
+  app.load("app.js");
   assert.equal(cardFor(app, unsafeText).children[0].children[0].textContent, unsafeText);
 
   app.element("sumbtn").onclick();
@@ -859,7 +920,7 @@ test("begrenzt Aufwand und Einstellungen beim Laden aus dem Speicher", () => {
 test("begrenzt den Aufwand importierter Aufgaben", async () => {
   const app = createApp();
   app.load("backup.js");
-  app.Kanban.initBackup(() => {});
+  app.Kanban.initBackup(() => { });
   const input = app.element("impfile");
   input.files = [{ size: 100, text: async () => JSON.stringify({ tasks: [task(95, { e: 1e300 })] }) }];
 
@@ -983,7 +1044,7 @@ test("schreibt das Protokoll beim Start nur, wenn es neu aufgebaut oder bereinig
 
 const withVersion = (version, migrations = "{}") => ({
   "storage.js": source => source.replace(
-    "const DATA_VERSION = 1;\n  const MIGRATIONS = {};",
+    /const DATA_VERSION = \d+;\s*const MIGRATIONS = \{[^}]*\};/,
     `const DATA_VERSION = ${version};\n  const MIGRATIONS = ${migrations};`
   )
 });
@@ -1078,7 +1139,7 @@ test("verweigert den Import bei Daten einer neueren Version", async () => {
 test("exportiert mit der aktuellen Datenversion", async () => {
   const app = createApp();
   app.load("backup.js");
-  app.Kanban.initBackup(() => {});
+  app.Kanban.initBackup(() => { });
   await app.element("exp").onclick();
   assert.equal(JSON.parse(await app.downloads[0].blob.text()).version, app.Kanban.DATA_VERSION);
 });
@@ -1086,7 +1147,7 @@ test("exportiert mit der aktuellen Datenversion", async () => {
 test("prüft beim Import die Versionsnummer der Sicherung", async () => {
   const app = createApp();
   app.load("backup.js");
-  app.Kanban.initBackup(() => {});
+  app.Kanban.initBackup(() => { });
   const before = app.Kanban.state.tasks.length;
 
   await importText(app, JSON.stringify({ version: 2, tasks: [task(10)] }));
@@ -1166,7 +1227,7 @@ test("Daten mit Version 3 sind für eine Seite mit Datenversion 2 schreibgeschü
 test("startet den Download über einen kurzlebigen Blob-Link und gibt ihn danach wieder frei", async () => {
   const app = createApp();
   app.load("backup.js");
-  app.Kanban.initBackup(() => {});
+  app.Kanban.initBackup(() => { });
   app.element("exp").onclick();
 
   assert.equal(app.downloads.length, 1);
@@ -1182,7 +1243,7 @@ test("startet den Download über einen kurzlebigen Blob-Link und gibt ihn danach
 test("meldet verständlich, wenn der Download nicht gestartet werden kann", () => {
   const app = createApp();
   app.load("backup.js");
-  app.Kanban.initBackup(() => {});
+  app.Kanban.initBackup(() => { });
   app.sandbox.URL.createObjectURL = () => {
     throw new Error("nicht verfügbar");
   };
@@ -1195,8 +1256,10 @@ test("meldet verständlich, wenn der Download nicht gestartet werden kann", () =
 });
 
 test("enthält keine Reste der Veröffentlichungsplattform mehr", () => {
-  for (const file of fs.readdirSync(path.join(projectRoot, "src"))) {
-    const source = fs.readFileSync(path.join(projectRoot, "src", file), "utf8");
-    assert.doesNotMatch(source, /claude/i, `${file} verweist noch auf die Plattform`);
+  const files = getAllFiles(path.join(projectRoot, "src"));
+  for (const filePath of files) {
+    const source = fs.readFileSync(filePath, "utf8");
+    const relPath = path.relative(projectRoot, filePath);
+    assert.doesNotMatch(source, /claude/i, `${relPath} verweist noch auf die Plattform`);
   }
 });
