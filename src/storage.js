@@ -50,7 +50,7 @@
         : Date.now();
     const task = {
       id: isNumber(value.id) ? value.id : created,
-      t: value.t.trim().slice(0, 120),
+      t: value.t.trim().slice(0, 300),
       c: TOK.includes(value.c) ? value.c : "todo",
       p: typeof value.p === "string" && Object.hasOwn(RANK, value.p) ? value.p : "mittel",
       created,

@@ -26,7 +26,7 @@ Eine Aufgabe enthält im Regelfall:
 | Feld | Bedeutung |
 |---|---|
 | `id` | numerische Aufgabenkennung |
-| `t` | Titel, getrimmt und auf 120 Zeichen begrenzt |
+| `t` | Titel, getrimmt und auf 300 Zeichen begrenzt |
 | `c` | Spalte: `todo`, `doing` oder `done` |
 | `p` | Priorität: `hoch`, `mittel` oder `niedrig` |
 | `created` | Erstellungszeit als Zeitstempel |

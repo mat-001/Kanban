@@ -25,7 +25,7 @@ Der Plan deckt Kernfunktionen, Frist- und Sortierlogik, Persistenz, Import/Expor
 | F-01 | P0 | Seite erstmals ohne gespeicherte Daten öffnen | Board erscheint mit der vorgesehenen Beispielaufgabe. |
 | F-02 | P0 | Aufgabe mit Text, Priorität, Termin und Aufwand anlegen | Aufgabe erscheint in „Zu erledigen“; Eingaben werden zurückgesetzt. |
 | F-03 | P1 | Leeren bzw. nur aus Leerzeichen bestehenden Titel absenden | Aufgabe wird nicht angelegt; verständliche Meldung erscheint. |
-| F-04 | P1 | Titel mit 120 Zeichen, danach längeren Text eingeben | Eingabe ist auf 120 Zeichen begrenzt; gültiger Titel wird korrekt angezeigt. |
+| F-04 | P1 | Titel mit 300 Zeichen, danach längeren Text eingeben | Eingabe ist auf 300 Zeichen begrenzt; gültiger Titel wird korrekt angezeigt. |
 | F-05 | P1 | Aufgabe bearbeiten und speichern | Geänderte Felder werden angezeigt und nach Neuladen beibehalten. |
 | F-06 | P1 | Bearbeitung abbrechen oder Dialog schließen | Änderungen werden nicht übernommen. |
 | F-07 | P0 | Aufgabe per Pfeil und per Drag-and-drop verschieben | Aufgabe wechselt in die richtige Spalte; der Verlauf erhält den passenden Eintrag. |
