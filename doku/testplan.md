@@ -1,49 +1,24 @@
-Read , lines 1 to 240
-Completed with input: {
-  "path": "/Users/ich/Projekte/HTML/Kanban/style.css",
-  "view_range": [
-    1,
-    240
-  ]
-}
-
-Read , lines 241 to 500
-Completed with input: {
-  "path": "/Users/ich/Projekte/HTML/Kanban/style.css",
-  "view_range": [
-    241,
-    500
-  ]
-}
-
-Read , lines 1 to 240
-Completed with input: {
-  "path": "/Users/ich/Projekte/HTML/Kanban/help.html",
-  "view_range": [
-    1,
-    240
-  ]
-}
-
-## Testplan: Kanban-Board
+# Testplan: Kanban-Board
 
 Der Plan deckt Kernfunktionen, Frist- und Sortierlogik, Persistenz, Import/Export sowie Bedienbarkeit ab. Die fachlichen Regeln stehen teilweise in der `Hilfe`; die zugehörige Oberfläche ist in `index.html` und `style.css` umgesetzt.
 
-### 1. Testziele und Testumgebung
+## 1. Testziele und Testumgebung
 
-**Ziele**
+### Ziele
+
 - Sicherstellen, dass Aufgaben korrekt angelegt, bearbeitet, verschoben und gelöscht werden.
 - Prüfen, ob Fristen, Prioritäten und Alterung wie beschrieben berechnet und sortiert werden.
 - Datenverlust und Fehlverhalten bei beschädigten oder nicht verfügbaren Browserdaten erkennen.
 - Import und Export sowie die Bedienbarkeit auf Desktop und Mobilgeräten absichern.
 
-**Umgebung**
+### Umgebung
+
 - Mit einer frischen Browser-Profilsitzung und einem separaten Profil für Persistenztests starten.
 - Aktuelle Versionen von Chrome, Firefox und Safari prüfen.
 - Desktop und schmales Mobil-Viewport testen; auf Mobilgeräten insbesondere horizontales Scrollen und die Pfeil-Schaltflächen prüfen.
 - Für automatisierte Browserprüfungen einen lokalen HTTP-Server verwenden; `file://` bei Bedarf als zusätzlichen manuellen Test prüfen.
 
-### 2. Funktionale Testfälle
+## 2. Funktionale Testfälle
 
 | ID | Prio | Test | Erwartetes Ergebnis |
 |---|---|---|---|
@@ -58,7 +33,7 @@ Der Plan deckt Kernfunktionen, Frist- und Sortierlogik, Persistenz, Import/Expor
 | F-09 | P1 | Aufgabe löschen und Undo-Zeit ablaufen lassen | Aufgabe bleibt gelöscht; Undo-Meldung verschwindet. |
 | F-10 | P1 | Einstellungen für Sicherheitspuffer und Alterung ändern | Werte werden übernommen, gespeichert und beeinflussen Anzeige bzw. Sortierung. |
 
-### 3. Frist-, Alterungs- und Sortierlogik
+## 3. Frist-, Alterungs- und Sortierlogik
 
 Die Regeln sind in `src/dates.js` und `src/sort.js` umgesetzt.
 
@@ -72,10 +47,10 @@ Die Regeln sind in `src/dates.js` und `src/sort.js` umgesetzt.
 | L-06 | P1 | Alterung nach Ablauf eines bzw. mehrerer Intervalle prüfen | Effektive Priorität steigt stufenweise; bei Alterung `0` bleibt sie unverändert. |
 | L-07 | P1 | Aufgaben ohne Termin und Aufgaben mit gleichem Startdatum vergleichen | Aufgaben ohne Termin stehen bei ansonsten gleichen Kriterien dahinter; danach gilt die Ablage-Reihenfolge. |
 | L-08 | P1 | Aufgaben in „Erledigt“ verschieben | Neu erledigte Aufgabe steht oben; Erledigungszeit wird angezeigt. |
-| L-09 | P1 | Aufgabe von „In Arbeit“ zurück nach „Zu erledigen“ verschieben | Die Wartezeit beginnt gemäß Beschreibung in der Hilfe neu. **Diesen Fall gezielt prüfen:** Die Logik für `since` in `src/task.js` setzt den Wert derzeit nur beim Zurückholen einer erledigten Aufgabe. |
+| L-09 | P1 | Aufgabe von „In Arbeit“ zurück nach „Zu erledigen“ verschieben | Die Wartezeit beginnt gemäß Beschreibung in der Hilfe neu. |
 | L-10 | P0 | Aufwand `1e300` im Formular, im Bearbeiten-Fenster, im Import und in bereits gespeicherten Daten; Puffer `1000000000` in den Einstellungen | Formular und Bearbeiten lehnen mit Meldung ab; Laden, Import und Einstellungen begrenzen auf 1000 Stunden bzw. 365 Tage; die Seite bleibt sofort bedienbar. |
 
-### 4. Speicherung, Import und Export
+## 4. Speicherung, Import und Export
 
 Persistenz- und Bereinigungslogik liegt in `src/storage.js`; Import und Export in `src/backup.js`.
 
@@ -95,7 +70,7 @@ Persistenz- und Bereinigungslogik liegt in `src/storage.js`; Import und Export i
 
 **Geklärt (D-10):** Puffer und Alterung sind überall auf höchstens `365` Tage begrenzt (Einstellungen, Laden, Import), der Aufwand einer Aufgabe auf höchstens `1000` Stunden. Die Grenzen stehen als `MAX_SETTING` und `MAX_EFFORT` in `src/dates.js`.
 
-### 5. Zusammenfassung, Sicherheit und Barrierefreiheit
+## 5. Zusammenfassung, Sicherheit und Barrierefreiheit
 
 Die Zusammenfassung ist in `src/summary.js` implementiert.
 
@@ -106,7 +81,7 @@ Die Zusammenfassung ist in `src/summary.js` implementiert.
 - **Dialoge:** Einstellungen, Zusammenfassung und Bearbeitung öffnen und schließen; insbesondere Escape und Klick auf den Dialoghintergrund prüfen.
 - **Darstellung:** Helles und dunkles Farbschema, lange Aufgabentitel, viele Karten sowie horizontales Board-Scrollen auf schmalen Viewports testen.
 
-### 6. Empfohlene Automatisierung und Abnahmekriterien
+## 6. Empfohlene Automatisierung und Abnahmekriterien
 
 Als erste Automatisierungsstufe eignen sich Tests für Datumsberechnung, Sortierung, Bereinigung und Importlogik sowie wenige Browsertests für die zentralen Abläufe „Anlegen → Verschieben → Neuladen“ und „Export → Import“. Betroffene Logik liegt unter anderem in `src/dates.js`, `src/sort.js` und `src/storage.js`.
 
