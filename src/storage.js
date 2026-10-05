@@ -4,6 +4,22 @@
   const LOG_MAX = 1000;
   const LOG_DAYS = 30;
   const LOG_KINDS = ["add", "start", "done", "back", "del"];
+
+  // Version des Datenformats im Browser-Speicher (Schlüssel "kanban_version"). Ändert sich das Format,
+  // DATA_VERSION um 1 erhöhen und unter MIGRATIONS[alteVersion] eine Funktion ergänzen, die die Aufgabenliste
+  // von dieser Version in die nächste umwandelt. Daten einer NEUEREN Version werden nur gelesen, nie überschrieben.
+  const DATA_VERSION = 1;
+  const MIGRATIONS = {};
+
+  function migrate(tasks, from, target = DATA_VERSION, steps = MIGRATIONS) {
+    for (let version = from; version < target; version++) {
+      if (typeof steps[version] !== "function") {
+        throw new Error(`Für die Umstellung von Datenversion ${version} fehlt eine Migration.`);
+      }
+      tasks = steps[version](tasks);
+    }
+    return tasks;
+  }
   const LBL = {
     add: "Angelegt",
     start: "In Arbeit gestartet",
@@ -18,7 +34,11 @@
     step: 7,
     loadProblem: "",
     recoveryCopyAttempted: false,
-    recoveryCopySaved: false
+    recoveryCopySaved: false,
+    storedVersion: 1, // Datenversion der gelesenen Daten (ohne Angabe gilt 1)
+    readOnly: false, // true, wenn die Daten von einer neueren Version stammen: lesen ja, schreiben nie
+    rawTasks: null, // nur bei readOnly: unveränderte Originaldaten für den Export
+    rawLog: null
   };
   const isNumber = value => typeof value === "number" && Number.isFinite(value);
 
@@ -52,12 +72,31 @@
     state.loadProblem = "Gespeicherte Aufgaben konnten nicht gelesen werden.";
   }
 
+  try {
+    const versionText = localStorage.getItem("kanban_version");
+    const version = Number(versionText);
+    if (versionText !== null && Number.isInteger(version) && version >= 1) state.storedVersion = version;
+  } catch (error) {
+    // Ohne lesbare Versionsangabe gilt Version 1.
+  }
+  state.readOnly = state.storedVersion > DATA_VERSION;
+
   if (raw !== null) {
     let data = null;
     try {
       data = JSON.parse(raw);
     } catch (error) {
       // Invalid data is reported below and kept as a recovery copy when possible.
+    }
+
+    if (state.readOnly && Array.isArray(data)) state.rawTasks = data;
+    if (Array.isArray(data) && !state.readOnly) {
+      try {
+        data = migrate(data, state.storedVersion);
+      } catch (error) {
+        data = null;
+        state.loadProblem = "Die gespeicherten Daten konnten nicht auf das aktuelle Format umgestellt werden.";
+      }
     }
 
     if (Array.isArray(data)) {
@@ -78,11 +117,11 @@
       if (invalidCount) {
         state.loadProblem = `${invalidCount} gespeicherte Einträge waren unlesbar und wurden übersprungen.`;
       }
-    } else {
+    } else if (!state.loadProblem) {
       state.loadProblem = "Die gespeicherten Aufgaben waren beschädigt und konnten nicht gelesen werden.";
     }
 
-    if (state.loadProblem) {
+    if (state.loadProblem && !state.readOnly) {
       state.recoveryCopyAttempted = true;
       try {
         localStorage.setItem("kanban_defekt", raw);
@@ -119,7 +158,9 @@
   state.step = readSetting("kanban_age", state.step);
 
   function save() {
+    if (state.readOnly) return false; // Daten einer neueren Version nie überschreiben
     try {
+      localStorage.setItem("kanban_version", String(DATA_VERSION));
       localStorage.setItem("kanban", JSON.stringify(state.tasks));
       document.dispatchEvent(new CustomEvent("kanban-storage-saved"));
       return true;
@@ -130,6 +171,7 @@
   }
 
   function saveSetting(key, value) {
+    if (state.readOnly) return false;
     const storageKey = key === "buffer" ? "kanban_buf" : "kanban_age";
     try {
       localStorage.setItem(storageKey, value);
@@ -144,6 +186,7 @@
   } catch (error) {
     state.log = null;
   }
+  if (state.readOnly && Array.isArray(state.log)) state.rawLog = state.log;
 
   function pruneLog() {
     const oldest = Date.now() - LOG_DAYS * 864e5;
@@ -162,6 +205,7 @@
   // Ist der Speicher voll, wird nur eine gekürzte Kopie mit den neuesten Einträgen abgelegt
   // (bis hinunter auf ein Sechzehntel). Rückgabe: true, wenn irgendeine Fassung geschrieben wurde.
   function saveLog() {
+    if (state.readOnly) return false;
     let entries = state.log;
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
@@ -201,6 +245,9 @@
     LOG_DAYS,
     LOG_KINDS,
     LBL,
+    DATA_VERSION,
+    MIGRATIONS,
+    migrate,
     state,
     cleanTask,
     save,

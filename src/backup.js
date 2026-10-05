@@ -1,5 +1,6 @@
 (function (Kanban) {
   const { ymd, MAX_SETTING } = Kanban;
+  const { DATA_VERSION, migrate } = Kanban;
   const { cleanTask, LBL, pruneLog, save, saveLog, saveSetting, state } = Kanban;
   const $ = id => document.getElementById(id);
 
@@ -36,10 +37,11 @@
   function createBackup() {
     return {
       format: "kanban-sicherung",
-      version: 1,
+      // Bei schreibgeschützten Daten einer neueren Version werden die Originaldaten unverändert gesichert.
+      version: state.readOnly ? state.storedVersion : DATA_VERSION,
       exportedAt: new Date().toISOString(),
-      tasks: state.tasks,
-      log: state.log,
+      tasks: state.readOnly && state.rawTasks ? state.rawTasks : state.tasks,
+      log: state.readOnly && state.rawLog ? state.rawLog : state.log,
       settings: { buffer: state.buffer, step: state.step }
     };
   }
@@ -119,6 +121,12 @@
   }
 
   async function importFile(file, render) {
+    if (state.readOnly) {
+      throw new Error(
+        "Diese Daten stammen von einer neueren Version der Seite und sind schreibgeschützt. " +
+        "Importieren ist deshalb nicht möglich."
+      );
+    }
     if (file.size > 2e6) throw new Error("Die Datei ist zu groß (über 2 MB).");
 
     let backup;
@@ -127,11 +135,25 @@
     } catch (error) {
       throw new Error("Die Datei ist keine gültige Sicherung.");
     }
-    if (!backup || !Array.isArray(backup.tasks)) {
+    if (!backup || typeof backup !== "object") {
       throw new Error("In der Datei wurden keine Aufgaben gefunden.");
     }
 
-    const result = importTasks(backup.tasks);
+    const fileVersion = backup.version === undefined ? 1 : backup.version;
+    if (!Number.isInteger(fileVersion) || fileVersion < 1) {
+      throw new Error("Die Sicherung hat eine ungültige Versionsnummer.");
+    }
+    if (fileVersion > DATA_VERSION) {
+      throw new Error(
+        `Die Sicherung stammt von einer neueren Version der Seite (Datenversion ${fileVersion}, ` +
+        `hier unterstützt: ${DATA_VERSION}) und kann hier nicht gelesen werden.`
+      );
+    }
+    if (!Array.isArray(backup.tasks)) {
+      throw new Error("In der Datei wurden keine Aufgaben gefunden.");
+    }
+
+    const result = importTasks(migrate(backup.tasks, fileVersion));
     importLog(backup.log);
     const failedSettings = importSettings(backup.settings || {});
     const settingNames = { buffer: "Sicherheitspuffer", step: "Alterung" };
@@ -153,12 +175,13 @@
 
   function initBackup(render) {
     $("exp").onclick = async () => {
-      const text = JSON.stringify(createBackup(), null, 1);
+      const backup = createBackup();
+      const text = JSON.stringify(backup, null, 1);
       const filename = `kanban-sicherung-${ymd(new Date())}.json`;
       const result = await saveFile(filename, text);
       const message = result === "declined"
         ? "Speichern abgebrochen."
-        : `Sicherung mit ${state.tasks.length} Aufgaben ` +
+        : `Sicherung mit ${backup.tasks.length} Aufgaben ` +
           `${result === "saved" ? "gespeichert" : "wird heruntergeladen"}.`;
       showMessage(message, result !== "declined");
     };

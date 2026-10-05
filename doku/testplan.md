@@ -47,7 +47,7 @@ Die Regeln sind in `src/dates.js` und `src/sort.js` umgesetzt.
 | L-06 | P1 | Alterung nach Ablauf eines bzw. mehrerer Intervalle prüfen | Effektive Priorität steigt stufenweise; bei Alterung `0` bleibt sie unverändert. |
 | L-07 | P1 | Aufgaben ohne Termin und Aufgaben mit gleichem Startdatum vergleichen | Aufgaben ohne Termin stehen bei ansonsten gleichen Kriterien dahinter; danach gilt die Ablage-Reihenfolge. |
 | L-08 | P1 | Aufgaben in „Erledigt“ verschieben | Neu erledigte Aufgabe steht oben; Erledigungszeit wird angezeigt. |
-| L-09 | P1 | Aufgabe von „In Arbeit“ zurück nach „Zu erledigen“ verschieben | Die Wartezeit beginnt gemäß Beschreibung in der Hilfe neu. |
+| L-09 | P1 | Aufgabe von „In Arbeit“ zurück nach „Zu erledigen“ verschieben | Die Wartezeit beginnt gemäß Beschreibung in der Hilfe neu. **Diesen Fall gezielt prüfen:** Die Logik für `since` in `src/task.js` setzt den Wert derzeit nur beim Zurückholen einer erledigten Aufgabe. |
 | L-10 | P0 | Aufwand `1e300` im Formular, im Bearbeiten-Fenster, im Import und in bereits gespeicherten Daten; Puffer `1000000000` in den Einstellungen | Formular und Bearbeiten lehnen mit Meldung ab; Laden, Import und Einstellungen begrenzen auf 1000 Stunden bzw. 365 Tage; die Seite bleibt sofort bedienbar. |
 
 ## 4. Speicherung, Import und Export
@@ -57,7 +57,7 @@ Persistenz- und Bereinigungslogik liegt in `src/storage.js`; Import und Export i
 | ID | Prio | Test | Erwartetes Ergebnis |
 |---|---|---|---|
 | D-01 | P0 | Aufgabe anlegen, Seite neu laden | Aufgabe und Spaltenzuordnung bleiben erhalten. |
-| D-02 | P1 | Export durchführen und Datei prüfen | Sicherung enthält Aufgaben, Verlauf, Einstellungen, Formatkennung und Versionsnummer. |
+| D-02 | P1 | Export durchführen und Datei prüfen | Sicherung enthält Aufgaben, Verlauf, Einstellungen, Formatkennung und die aktuelle `DATA_VERSION`. |
 | D-03 | P0 | Export in frischem Profil importieren | Aufgaben und Verlauf werden übernommen; Einstellungen aus der Sicherung ersetzen die aktuellen. |
 | D-04 | P1 | Dieselbe Sicherung mehrfach importieren | Bereits vorhandene Aufgaben werden übersprungen; Aufgaben werden nicht vervielfacht. |
 | D-05 | P1 | Import mit doppelten IDs, aber unterschiedlichen Titeln | IDs werden konfliktfrei behandelt; keine Aufgabe geht verloren. |
@@ -67,6 +67,8 @@ Persistenz- und Bereinigungslogik liegt in `src/storage.js`; Import und Export i
 | D-09 | P1 | Import mit ungültigen Aufgaben, ungültigem Verlauf und ungültigen Einstellungen | Ungültige Einträge werden kontrolliert übersprungen; gültige Daten bleiben nutzbar. |
 | D-10 | P1 | Exportieren und anschließend wieder importieren | Roundtrip erhält alle gültigen Aufgaben, Verlaufseinträge und Einstellungen. |
 | D-11 | P1 | Speicher blockiert oder fast voll, Protokoll mit vielen Einträgen, danach neue Aufgabe anlegen | Das Protokoll im Programm bleibt vollständig (die Zusammenfassung zeigt alles). Bei vollem Speicher wird nur eine gekürzte Kopie der neuesten Einträge abgelegt. Beim Start wird das Protokoll nur geschrieben, wenn es neu aufgebaut oder bereinigt wurde. |
+| D-12 | P0 | Daten mit höherer `kanban_version` (z. B. 2) im Speicher, unbekannte Felder in den Aufgaben; danach anlegen, verschieben, Einstellungen ändern, exportieren, importieren | Daten bleiben lesbar. Der Speicher (`kanban`, `kanban_log`, `kanban_version`, Einstellungen) wird nie verändert. Rote, bleibende Warnung oben. Export enthält die Originaldaten mit deren Versionsnummer, Import wird verweigert. Daten ohne Versionsangabe gelten als Version 1; ungültige Angaben ebenfalls. |
+| D-13 | P1 | Import einer Sicherung mit höherer, ungültiger (`"x"`, `0`, `1.5`, `null`) oder fehlender Versionsnummer | Höhere Version und ungültige Nummer werden mit Meldung abgelehnt (vor der Prüfung der Aufgaben); fehlende Nummer gilt als Version 1. Ältere Versionen laufen durch die Migrationen. |
 
 **Geklärt (D-10):** Puffer und Alterung sind überall auf höchstens `365` Tage begrenzt (Einstellungen, Laden, Import), der Aufwand einer Aufgabe auf höchstens `1000` Stunden. Die Grenzen stehen als `MAX_SETTING` und `MAX_EFFORT` in `src/dates.js`.
 

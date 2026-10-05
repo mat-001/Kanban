@@ -8,7 +8,7 @@ const projectRoot = path.resolve(__dirname, "..");
 const DAY_MS = 864e5;
 const FIXED_NOW = new Date(2026, 9, 4, 12).getTime();
 
-function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLength = {} } = {}) {
+function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLength = {}, patch = {} } = {}) {
   const storedValues = new Map(Object.entries({ kanban: "[]", ...storage }));
   const failedKeys = new Set(failWrites);
   const valueLimits = new Map(Object.entries(maxValueLength)); // simuliert einen fast vollen Speicher
@@ -175,7 +175,8 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
   sandbox.window = sandbox;
 
   const load = filename => {
-    const source = fs.readFileSync(path.join(projectRoot, "src", filename), "utf8");
+    let source = fs.readFileSync(path.join(projectRoot, "src", filename), "utf8");
+    if (patch[filename]) source = patch[filename](source); // erlaubt Tests mit anderer DATA_VERSION/MIGRATIONS
     vm.runInNewContext(source, sandbox, { filename });
   };
 
@@ -959,4 +960,190 @@ test("schreibt das Protokoll beim Start nur, wenn es neu aufgebaut oder bereinig
 
   const firstStart = createApp({ storage: { kanban_log: "{kaputt" } });
   assert.equal(firstStart.writes.includes("kanban_log"), true, "ohne Protokoll wird es aus den Aufgaben aufgebaut");
+});
+
+// ---------------------------------------------------------------------------
+// Datenversion: Altdaten lesen, neuere Daten schützen, Migrationen, Importprüfung
+// ---------------------------------------------------------------------------
+
+const withVersion = (version, migrations = "{}") => ({
+  "storage.js": source => source.replace(
+    "const DATA_VERSION = 1;\n  const MIGRATIONS = {};",
+    `const DATA_VERSION = ${version};\n  const MIGRATIONS = ${migrations};`
+  )
+});
+
+async function importText(app, text) {
+  const input = app.element("impfile");
+  input.files = [{ size: text.length, text: async () => text }];
+  await input.onchange({ target: input });
+}
+
+test("legt beim Speichern die Datenversion ab und liest Daten ohne Versionsangabe als Version 1", () => {
+  const legacy = createApp({ storage: { kanban: JSON.stringify([task(1)]) } });
+  assert.equal(legacy.Kanban.state.readOnly, false);
+  assert.equal(legacy.Kanban.state.storedVersion, 1);
+  assert.equal(legacy.storedValues.has("kanban_version"), false, "Lesen allein ändert nichts");
+
+  legacy.Kanban.save();
+  assert.equal(legacy.storedValues.get("kanban_version"), String(legacy.Kanban.DATA_VERSION));
+});
+
+test("behandelt unlesbare Versionsangaben wie Version 1", () => {
+  for (const text of ["abc", "0", "-3", "1.5", "", "NaN"]) {
+    const app = createApp({ storage: { kanban: JSON.stringify([task(1)]), kanban_version: text } });
+    assert.equal(app.Kanban.state.readOnly, false, `Angabe ${JSON.stringify(text)}`);
+    assert.equal(app.Kanban.state.storedVersion, 1);
+  }
+});
+
+test("liest Daten einer neueren Version, überschreibt aber nichts", () => {
+  const raw = JSON.stringify([{ ...task(1), zukunft: "feld" }, null]);
+  const app = createApp({
+    storage: { kanban: raw, kanban_version: "2", kanban_log: JSON.stringify(logEntries(3)), kanban_buf: "4" }
+  });
+  const { Kanban, storedValues, writes, events } = app;
+
+  assert.equal(Kanban.state.readOnly, true);
+  assert.equal(Kanban.state.storedVersion, 2);
+  assert.equal(Kanban.state.tasks[0].id, 1, "die Daten sind trotzdem lesbar");
+  assert.equal(writes.length, 0, "beim Laden wird nichts geschrieben, auch keine Sicherheitskopie");
+
+  Kanban.addTask(task(2));
+  Kanban.updateTask(1, { t: "geändert" });
+  Kanban.moveTask(Kanban.state.tasks[0], "done");
+  assert.equal(Kanban.save(), false);
+  assert.equal(Kanban.saveLog(), false);
+  assert.equal(Kanban.saveSetting("buffer", 9), false);
+
+  assert.equal(Kanban.state.tasks.length, 2, "Änderungen gelten nur im Programm");
+  assert.equal(writes.length, 0, "es gab keinen einzigen Schreibversuch");
+  assert.equal(storedValues.get("kanban"), raw);
+  assert.equal(storedValues.get("kanban_version"), "2");
+  assert.equal(storedValues.get("kanban_buf"), "4");
+  assert.equal(events.includes("kanban-storage-failed"), false, "keine irreführende Speicher-voll-Warnung");
+});
+
+test("zeigt für Daten einer neueren Version einen Hinweis, der nicht verschwindet", () => {
+  const app = loadBoard(createApp({ storage: { kanban: JSON.stringify([task(1)]), kanban_version: "2" } }));
+  const notice = () => app.element("notice");
+  assert.equal(notice().hidden, false);
+  assert.match(notice().className, /warn/);
+  assert.match(app.element("ntext").textContent, /Datenversion 2.*unterstützt: 1/);
+
+  app.element("buf").value = "5";
+  app.element("buf").onchange();
+  assert.match(app.element("ntext").textContent, /neueren Version/, "Einstellungen überschreiben den Hinweis nicht");
+  actionButton(cardFor(app, "Aufgabe 1"), "→").onclick();
+  assert.match(app.element("ntext").textContent, /neueren Version/);
+});
+
+test("exportiert bei Daten einer neueren Version die Originaldaten mit deren Versionsnummer", async () => {
+  const stored = [{ ...task(1), zukunft: "feld" }];
+  const app = loadBoard(createApp({
+    storage: { kanban: JSON.stringify(stored), kanban_version: "7", kanban_log: JSON.stringify([{ ts: FIXED_NOW, k: "neu", t: "unbekannte Art" }]) }
+  }));
+  const downloads = [];
+  app.sandbox.claude = { use: async () => ({ save: async payload => downloads.push(payload) }) };
+
+  await app.element("exp").onclick();
+
+  const backup = JSON.parse(downloads[0].data);
+  assert.equal(backup.version, 7);
+  assert.equal(backup.tasks[0].zukunft, "feld", "unbekannte Felder bleiben erhalten");
+  assert.equal(backup.log[0].k, "neu", "auch unbekannte Protokollarten bleiben erhalten");
+});
+
+test("verweigert den Import bei Daten einer neueren Version", async () => {
+  const app = loadBoard(createApp({ storage: { kanban: JSON.stringify([task(1)]), kanban_version: "2" } }));
+  await importText(app, JSON.stringify({ version: 1, tasks: [task(5)] }));
+
+  assert.match(app.element("dmsg").textContent, /schreibgeschützt/);
+  assert.equal(app.Kanban.state.tasks.length, 1);
+});
+
+test("exportiert mit der aktuellen Datenversion", async () => {
+  const app = createApp();
+  app.load("backup.js");
+  const downloads = [];
+  app.sandbox.claude = { use: async () => ({ save: async payload => downloads.push(payload) }) };
+  app.Kanban.initBackup(() => {});
+  await app.element("exp").onclick();
+  assert.equal(JSON.parse(downloads[0].data).version, app.Kanban.DATA_VERSION);
+});
+
+test("prüft beim Import die Versionsnummer der Sicherung", async () => {
+  const app = createApp();
+  app.load("backup.js");
+  app.Kanban.initBackup(() => {});
+  const before = app.Kanban.state.tasks.length;
+
+  await importText(app, JSON.stringify({ version: 2, tasks: [task(10)] }));
+  assert.match(app.element("dmsg").textContent, /neueren Version.*Datenversion 2.*unterstützt: 1/);
+  assert.equal(app.Kanban.state.tasks.length, before);
+
+  for (const invalid of ["x", 0, -1, 1.5, null]) {
+    await importText(app, JSON.stringify({ version: invalid, tasks: [task(11)] }));
+    assert.match(app.element("dmsg").textContent, /ungültige Versionsnummer/, `Version ${JSON.stringify(invalid)}`);
+  }
+  assert.equal(app.Kanban.state.tasks.length, before);
+
+  await importText(app, JSON.stringify({ version: 1, tasks: [task(12)] }));
+  assert.match(app.element("dmsg").textContent, /1 Aufgabe hinzugefügt/);
+  await importText(app, JSON.stringify({ tasks: [task(13)] }));
+  assert.match(app.element("dmsg").textContent, /1 Aufgabe hinzugefügt/, "ohne Versionsangabe gilt Version 1");
+  await importText(app, JSON.stringify({ version: 99 }));
+  assert.match(app.element("dmsg").textContent, /neueren Version/, "Versionsprüfung kommt vor der Aufgabenprüfung");
+  await importText(app, JSON.stringify({ version: 1 }));
+  assert.match(app.element("dmsg").textContent, /keine Aufgaben gefunden/);
+});
+
+test("wendet Migrationen der Reihe nach an und meldet fehlende Schritte", () => {
+  const { Kanban } = createApp();
+  const steps = {
+    1: list => list.map(item => ({ ...item, a: 1 })),
+    2: list => list.map(({ a, ...rest }) => ({ ...rest, b: a }))
+  };
+  const plain = value => JSON.parse(JSON.stringify(value));
+
+  assert.deepEqual(plain(Kanban.migrate([{ id: 1 }], 1, 3, steps)), [{ id: 1, b: 1 }]);
+  assert.deepEqual(plain(Kanban.migrate([{ id: 1, a: 5 }], 2, 3, steps)), [{ id: 1, b: 5 }]);
+  const same = [{ id: 1 }];
+  assert.equal(Kanban.migrate(same, 3, 3, steps), same, "gleiche Version: nichts zu tun");
+  assert.throws(() => Kanban.migrate([], 1, 3, { 1: list => list }), /fehlt eine Migration/);
+});
+
+test("stellt beim Laden ältere Daten über die Migrationen um und speichert danach die neue Version", () => {
+  const app = createApp({
+    storage: { kanban: JSON.stringify([{ id: 1, name: "Altes Feld" }]), kanban_version: "1" },
+    patch: withVersion(2, "{ 1: list => list.map(item => ({ ...item, t: item.name })) }")
+  });
+
+  assert.equal(app.Kanban.DATA_VERSION, 2);
+  assert.equal(app.Kanban.state.readOnly, false);
+  assert.equal(app.Kanban.state.tasks[0].t, "Altes Feld");
+  assert.equal(app.Kanban.state.loadProblem, "");
+
+  app.Kanban.save();
+  assert.equal(app.storedValues.get("kanban_version"), "2");
+  assert.equal(JSON.parse(app.storedValues.get("kanban"))[0].t, "Altes Feld");
+});
+
+test("meldet eine fehlgeschlagene Migration wie beschädigte Daten und sichert das Original", () => {
+  const raw = JSON.stringify([{ id: 1, t: "x" }]);
+  const app = createApp({
+    storage: { kanban: raw, kanban_version: "1" },
+    patch: withVersion(2, '{ 1: () => { throw new Error("kaputt"); } }')
+  });
+
+  assert.match(app.Kanban.state.loadProblem, /umgestellt/);
+  assert.equal(app.Kanban.state.tasks.length, 0);
+  assert.equal(app.storedValues.get("kanban_defekt"), raw);
+});
+
+test("Daten mit Version 3 sind für eine Seite mit Datenversion 2 schreibgeschützt", () => {
+  const app = createApp({ storage: { kanban: "[]", kanban_version: "3" }, patch: withVersion(2) });
+  assert.equal(app.Kanban.state.readOnly, true);
+  const current = createApp({ storage: { kanban: "[]", kanban_version: "2" }, patch: withVersion(2) });
+  assert.equal(current.Kanban.state.readOnly, false, "gleiche Version ist beschreibbar");
 });

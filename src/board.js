@@ -1,6 +1,7 @@
 (function (Kanban) {
   const { ageDays, fmt, fmtD, lastStart, today } = Kanban;
   const { MAX_EFFORT, MAX_SETTING, clampEffort, clampSetting } = Kanban;
+  const { DATA_VERSION } = Kanban;
   const { COLS, effRank, RANK, sorter } = Kanban;
   const { saveSetting, state } = Kanban;
   const { addTask, deleteTask, dismissUndo, moveTask, undoDelete, updateTask } = Kanban;
@@ -33,6 +34,15 @@
       details = " Die Sicherheitskopie konnte nicht im Browser abgelegt werden.";
     }
     showNotice("info", state.loadProblem + details);
+  }
+  if (state.readOnly) {
+    showNotice(
+      "warn",
+      `⚠️ Diese Daten wurden mit einer neueren Version der Seite gespeichert (Datenversion ${state.storedVersion}, ` +
+      `hier unterstützt: ${DATA_VERSION}). Damit nichts verloren geht, werden Änderungen weder gespeichert noch ` +
+      "importiert. Exportieren ist möglich. Bitte die neuere Version der Seite verwenden.",
+      "read-only"
+    );
   }
   document.addEventListener("kanban-storage-failed", () => {
     showNotice(
@@ -245,14 +255,14 @@
     input.onchange = () => {
       state[key] = clampSetting(parseInt(input.value, 10) || 0);
       input.value = state[key];
-      if (!saveSetting(key, state[key])) {
+      if (saveSetting(key, state[key])) {
+        hideNotice("setting-storage");
+      } else if (!state.readOnly) { // bei schreibgeschützten Daten erklärt der Hinweis oben bereits alles
         showNotice(
           "warn",
           "Die Einstellung gilt bis zum Schließen der Seite, konnte aber nicht gespeichert werden.",
           "setting-storage"
         );
-      } else {
-        hideNotice("setting-storage");
       }
       render();
     };
