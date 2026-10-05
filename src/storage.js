@@ -158,26 +158,35 @@
       .slice(-LOG_MAX);
   }
 
+  // Schreibt das Protokoll in den Browser-Speicher. state.log bleibt dabei immer vollständig:
+  // Ist der Speicher voll, wird nur eine gekürzte Kopie mit den neuesten Einträgen abgelegt
+  // (bis hinunter auf ein Sechzehntel). Rückgabe: true, wenn irgendeine Fassung geschrieben wurde.
   function saveLog() {
-    for (let attempt = 0; attempt < 4; attempt++) {
+    let entries = state.log;
+    for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        localStorage.setItem("kanban_log", JSON.stringify(state.log));
-        return;
+        localStorage.setItem("kanban_log", JSON.stringify(entries));
+        return true;
       } catch (error) {
-        state.log = state.log.slice(Math.ceil(state.log.length / 2));
+        entries = entries.slice(Math.ceil(entries.length / 2));
       }
     }
+    return false;
   }
 
+  // Beim Start nur schreiben, wenn sich am Protokoll etwas geändert hat (neu aufgebaut oder bereinigt).
+  let logChanged = false;
   if (!Array.isArray(state.log)) {
     state.log = [];
     state.tasks.forEach(task => {
       state.log.push({ ts: task.created, k: "add", t: task.t });
       if (task.doneAt) state.log.push({ ts: task.doneAt, k: "done", t: task.t });
     });
+    logChanged = true;
   }
+  const entriesBeforePruning = state.log.length;
   pruneLog();
-  saveLog();
+  if (logChanged || state.log.length !== entriesBeforePruning) saveLog();
 
   function addLog(kind, title) {
     const entry = { ts: Date.now(), k: kind, t: String(title).slice(0, 60) };

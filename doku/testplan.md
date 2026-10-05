@@ -91,6 +91,7 @@ Persistenz- und Bereinigungslogik liegt in `src/storage.js`; Import und Export i
 | D-08 | P1 | `localStorage` blockieren oder Schreibfehler simulieren | Speicherfehler wird sichtbar gemeldet; die App behauptet nicht, Änderungen dauerhaft gespeichert zu haben. |
 | D-09 | P1 | Import mit ungültigen Aufgaben, ungültigem Verlauf und ungültigen Einstellungen | Ungültige Einträge werden kontrolliert übersprungen; gültige Daten bleiben nutzbar. |
 | D-10 | P1 | Exportieren und anschließend wieder importieren | Roundtrip erhält alle gültigen Aufgaben, Verlaufseinträge und Einstellungen. |
+| D-11 | P1 | Speicher blockiert oder fast voll, Protokoll mit vielen Einträgen, danach neue Aufgabe anlegen | Das Protokoll im Programm bleibt vollständig (die Zusammenfassung zeigt alles). Bei vollem Speicher wird nur eine gekürzte Kopie der neuesten Einträge abgelegt. Beim Start wird das Protokoll nur geschrieben, wenn es neu aufgebaut oder bereinigt wurde. |
 
 **Geklärt (D-10):** Puffer und Alterung sind überall auf höchstens `365` Tage begrenzt (Einstellungen, Laden, Import), der Aufwand einer Aufgabe auf höchstens `1000` Stunden. Die Grenzen stehen als `MAX_SETTING` und `MAX_EFFORT` in `src/dates.js`.
 

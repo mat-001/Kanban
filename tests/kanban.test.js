@@ -8,9 +8,11 @@ const projectRoot = path.resolve(__dirname, "..");
 const DAY_MS = 864e5;
 const FIXED_NOW = new Date(2026, 9, 4, 12).getTime();
 
-function createApp({ storage = {}, now = FIXED_NOW, failWrites = [] } = {}) {
+function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLength = {} } = {}) {
   const storedValues = new Map(Object.entries({ kanban: "[]", ...storage }));
   const failedKeys = new Set(failWrites);
+  const valueLimits = new Map(Object.entries(maxValueLength)); // simuliert einen fast vollen Speicher
+  const writes = []; // jeder Schreibversuch, auch fehlgeschlagene
   const events = [];
   const elements = new Map();
   const listeners = new Map();
@@ -163,7 +165,9 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [] } = {}) {
         return storedValues.has(key) ? storedValues.get(key) : null;
       },
       setItem(key, value) {
+        writes.push(key);
         if (failedKeys.has(key)) throw new Error("Storage unavailable");
+        if (valueLimits.has(key) && String(value).length > valueLimits.get(key)) throw new Error("Quota exceeded");
         storedValues.set(key, String(value));
       }
     }
@@ -185,7 +189,8 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [] } = {}) {
     load,
     sandbox,
     timers,
-    storedValues
+    storedValues,
+    writes
   };
 }
 
@@ -887,4 +892,71 @@ test("begrenzt Sicherheitspuffer und Alterung in den Einstellungen auf 365 Tage"
   assert.equal(app.element("buf").value, 365);
   assert.equal(app.storedValues.get("kanban_buf"), "365");
   assert.equal(app.storedValues.get("kanban_age"), "365");
+});
+
+// ---------------------------------------------------------------------------
+// Protokoll bei Schreibproblemen (das Protokoll im Speicher darf nie schrumpfen)
+// ---------------------------------------------------------------------------
+
+function logEntries(count, { now = FIXED_NOW } = {}) {
+  return Array.from({ length: count }, (_, index) => ({
+    ts: now - (count - index) * 1000,
+    k: "add",
+    t: `Eintrag ${index}`
+  }));
+}
+
+test("behält das Protokoll im Speicher vollständig, wenn der Speicher nicht beschreibbar ist", () => {
+  const app = createApp({
+    storage: { kanban_log: JSON.stringify(logEntries(200)) },
+    failWrites: ["kanban", "kanban_log"]
+  });
+  const { Kanban } = app;
+  assert.equal(Kanban.state.log.length, 200, "nach dem Laden");
+
+  Kanban.addTask({ id: 1, t: "Neu", c: "todo", p: "mittel", created: FIXED_NOW, due: "", e: 1 });
+  assert.equal(Kanban.state.log.length, 201, "nach einer neuen Aufgabe");
+  assert.equal(Kanban.state.log.at(-1).t, "Neu");
+  assert.equal(Kanban.saveLog(), false, "meldet, dass nichts geschrieben werden konnte");
+  assert.equal(Kanban.state.log.length, 201);
+});
+
+test("legt bei fast vollem Speicher nur eine gekürzte Kopie ab und behält im Speicher alles", () => {
+  const app = createApp({
+    storage: { kanban_log: JSON.stringify(logEntries(200)) },
+    maxValueLength: { kanban_log: 3500 } // reicht für etwa 70 Einträge
+  });
+  const { Kanban, storedValues } = app;
+  assert.equal(Kanban.state.log.length, 200);
+
+  Kanban.addLog("add", "Letzter Eintrag");
+
+  const persisted = JSON.parse(storedValues.get("kanban_log"));
+  assert.equal(Kanban.state.log.length, 201, "im Speicher des Programms nichts verloren");
+  assert.ok(persisted.length > 0 && persisted.length < 201, `abgelegt: ${persisted.length}`);
+  // Per JSON vergleichen: die Objekte stammen aus zwei getrennten Laufumgebungen (vm) und wären sonst nie "gleich"
+  assert.equal(JSON.stringify(persisted), JSON.stringify(Kanban.state.log.slice(-persisted.length)), "abgelegt sind die neuesten Einträge");
+  assert.equal(persisted.at(-1).t, "Letzter Eintrag");
+  assert.equal(Kanban.saveLog(), true);
+});
+
+test("schreibt das Protokoll in voller Länge, solange Platz ist", () => {
+  const { Kanban, storedValues } = createApp({ storage: { kanban_log: JSON.stringify(logEntries(50)) } });
+  Kanban.addLog("done", "Fertig");
+  assert.equal(JSON.parse(storedValues.get("kanban_log")).length, 51);
+});
+
+test("schreibt das Protokoll beim Start nur, wenn es neu aufgebaut oder bereinigt werden musste", () => {
+  const unchanged = createApp({ storage: { kanban_log: JSON.stringify(logEntries(20)) } });
+  assert.equal(unchanged.writes.includes("kanban_log"), false, "unverändertes Protokoll wird nicht neu geschrieben");
+
+  const withJunk = createApp({ storage: { kanban_log: JSON.stringify([...logEntries(3), null, { ts: "x" }, { ts: FIXED_NOW, k: "bogus", t: "y" }]) } });
+  assert.equal(withJunk.writes.includes("kanban_log"), true, "bereinigtes Protokoll wird gespeichert");
+  assert.equal(JSON.parse(withJunk.storedValues.get("kanban_log")).length, 3);
+
+  const expired = createApp({ storage: { kanban_log: JSON.stringify([{ ts: FIXED_NOW - 40 * DAY_MS, k: "add", t: "alt" }, ...logEntries(2)]) } });
+  assert.equal(JSON.parse(expired.storedValues.get("kanban_log")).length, 2, "abgelaufene Einträge werden entfernt und gespeichert");
+
+  const firstStart = createApp({ storage: { kanban_log: "{kaputt" } });
+  assert.equal(firstStart.writes.includes("kanban_log"), true, "ohne Protokoll wird es aus den Aufgaben aufgebaut");
 });
