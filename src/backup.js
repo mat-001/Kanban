@@ -11,19 +11,9 @@
     message.hidden = false;
   }
 
-  async function saveFile(name, text) {
-    try {
-      const downloads = window.claude && window.claude.use
-        ? await window.claude.use("downloads")
-        : null;
-      if (downloads) {
-        await downloads.save({ filename: name, data: text });
-        return "saved";
-      }
-    } catch (error) {
-      if (error && error.code === "declined") return "declined";
-    }
-
+  // Startet den Download über einen kurzlebigen Link. Ob der Browser die Datei danach wirklich speichert
+  // (oder der Nutzer abbricht), lässt sich von der Seite aus nicht feststellen.
+  function downloadFile(name, text) {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
     link.download = name;
@@ -31,7 +21,6 @@
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(link.href), 2000);
-    return "download";
   }
 
   function createBackup() {
@@ -174,16 +163,15 @@
   }
 
   function initBackup(render) {
-    $("exp").onclick = async () => {
+    $("exp").onclick = () => {
       const backup = createBackup();
-      const text = JSON.stringify(backup, null, 1);
       const filename = `kanban-sicherung-${ymd(new Date())}.json`;
-      const result = await saveFile(filename, text);
-      const message = result === "declined"
-        ? "Speichern abgebrochen."
-        : `Sicherung mit ${backup.tasks.length} Aufgaben ` +
-          `${result === "saved" ? "gespeichert" : "wird heruntergeladen"}.`;
-      showMessage(message, result !== "declined");
+      try {
+        downloadFile(filename, JSON.stringify(backup, null, 1));
+        showMessage(`Sicherung mit ${backup.tasks.length} Aufgaben wird heruntergeladen.`);
+      } catch (error) {
+        showMessage("Der Download konnte nicht gestartet werden.", false);
+      }
     };
 
     $("imp").onclick = () => $("impfile").click();

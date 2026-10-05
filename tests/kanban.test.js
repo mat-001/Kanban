@@ -13,6 +13,9 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
   const failedKeys = new Set(failWrites);
   const valueLimits = new Map(Object.entries(maxValueLength)); // simuliert einen fast vollen Speicher
   const writes = []; // jeder Schreibversuch, auch fehlgeschlagene
+  const downloads = []; // ausgelöste Downloads: { filename, blob }
+  const blobUrls = new Map();
+  const revokedUrls = [];
   const events = [];
   const elements = new Map();
   const listeners = new Map();
@@ -81,7 +84,13 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
         },
         click() {
           this.clicked = true;
+          if (this.tagName === "a" && this.download) {
+            downloads.push({ filename: this.download, href: this.href, blob: blobUrls.get(this.href) });
+          }
           if (this.onclick) this.onclick();
+        },
+        remove() {
+          this.removed = true;
         },
         replaceWith(replacement) {
           if (this.id) elements.set(this.id, replacement);
@@ -152,6 +161,17 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
 
   const sandbox = {
     Date: FixedDate,
+    Blob,
+    URL: {
+      createObjectURL(blob) {
+        const url = `blob:test-${blobUrls.size + 1}`;
+        blobUrls.set(url, blob);
+        return url;
+      },
+      revokeObjectURL(url) {
+        revokedUrls.push(url);
+      }
+    },
     CustomEvent: class CustomEvent {
       constructor(type) {
         this.type = type;
@@ -191,7 +211,9 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
     sandbox,
     timers,
     storedValues,
-    writes
+    writes,
+    downloads,
+    revokedUrls
   };
 }
 
@@ -400,28 +422,24 @@ test("stellt eine gelöschte Aufgabe wieder her und entfernt den Löschverlauf",
 test("exportiert Aufgaben, Protokoll und Einstellungen in einer Sicherung", async () => {
   const app = createApp();
   app.load("backup.js");
-  const downloads = [];
   app.Kanban.state.tasks.push(task(20));
   app.Kanban.state.buffer = 3;
   app.Kanban.state.step = 9;
   app.Kanban.state.log.push({ ts: FIXED_NOW, k: "add", t: "Aufgabe 20" });
-  app.sandbox.claude = {
-    use: async () => ({
-      save: async payload => downloads.push(payload)
-    })
-  };
   app.Kanban.initBackup(() => {});
   await app.element("exp").onclick();
 
-  assert.equal(downloads.length, 1);
-  const backup = JSON.parse(downloads[0].data);
+  assert.equal(app.downloads.length, 1);
+  assert.equal(app.downloads[0].filename, "kanban-sicherung-2026-10-04.json");
+  assert.equal(app.downloads[0].blob.type, "application/json");
+  const backup = JSON.parse(await app.downloads[0].blob.text());
   assert.equal(backup.format, "kanban-sicherung");
   assert.equal(backup.version, 1);
   assert.equal(backup.tasks[0].id, 20);
   assert.equal(backup.log[0].t, "Aufgabe 20");
   assert.deepEqual(JSON.parse(JSON.stringify(backup.settings)), { buffer: 3, step: 9 });
   const message = app.element("dmsg");
-  assert.match(message.textContent, /gespeichert/);
+  assert.match(message.textContent, /Sicherung mit 1 Aufgaben wird heruntergeladen/);
 });
 
 test("importiert neue Aufgaben, dedupliziert, bereinigt Verlauf und übernimmt Einstellungen", async () => {
@@ -707,12 +725,9 @@ test("importiert eine Sicherung in ein frisches Profil und erhält Aufgaben, Ver
   source.Kanban.state.log = [{ ts: FIXED_NOW, k: "add", t: "Roundtrip" }];
   source.Kanban.state.buffer = 5;
   source.Kanban.state.step = 3;
-  const exported = [];
-  source.sandbox.claude = {
-    use: async () => ({ save: async payload => exported.push(payload.data) })
-  };
   source.Kanban.initBackup(() => {});
   await source.element("exp").onclick();
+  const exported = [await source.downloads[0].blob.text()];
 
   const target = createApp();
   target.load("backup.js");
@@ -1043,12 +1058,10 @@ test("exportiert bei Daten einer neueren Version die Originaldaten mit deren Ver
   const app = loadBoard(createApp({
     storage: { kanban: JSON.stringify(stored), kanban_version: "7", kanban_log: JSON.stringify([{ ts: FIXED_NOW, k: "neu", t: "unbekannte Art" }]) }
   }));
-  const downloads = [];
-  app.sandbox.claude = { use: async () => ({ save: async payload => downloads.push(payload) }) };
 
   await app.element("exp").onclick();
 
-  const backup = JSON.parse(downloads[0].data);
+  const backup = JSON.parse(await app.downloads[0].blob.text());
   assert.equal(backup.version, 7);
   assert.equal(backup.tasks[0].zukunft, "feld", "unbekannte Felder bleiben erhalten");
   assert.equal(backup.log[0].k, "neu", "auch unbekannte Protokollarten bleiben erhalten");
@@ -1065,11 +1078,9 @@ test("verweigert den Import bei Daten einer neueren Version", async () => {
 test("exportiert mit der aktuellen Datenversion", async () => {
   const app = createApp();
   app.load("backup.js");
-  const downloads = [];
-  app.sandbox.claude = { use: async () => ({ save: async payload => downloads.push(payload) }) };
   app.Kanban.initBackup(() => {});
   await app.element("exp").onclick();
-  assert.equal(JSON.parse(downloads[0].data).version, app.Kanban.DATA_VERSION);
+  assert.equal(JSON.parse(await app.downloads[0].blob.text()).version, app.Kanban.DATA_VERSION);
 });
 
 test("prüft beim Import die Versionsnummer der Sicherung", async () => {
@@ -1146,4 +1157,46 @@ test("Daten mit Version 3 sind für eine Seite mit Datenversion 2 schreibgeschü
   assert.equal(app.Kanban.state.readOnly, true);
   const current = createApp({ storage: { kanban: "[]", kanban_version: "2" }, patch: withVersion(2) });
   assert.equal(current.Kanban.state.readOnly, false, "gleiche Version ist beschreibbar");
+});
+
+// ---------------------------------------------------------------------------
+// Download der Sicherung (einfacher Blob-Download, keine Plattform-Schnittstelle)
+// ---------------------------------------------------------------------------
+
+test("startet den Download über einen kurzlebigen Blob-Link und gibt ihn danach wieder frei", async () => {
+  const app = createApp();
+  app.load("backup.js");
+  app.Kanban.initBackup(() => {});
+  app.element("exp").onclick();
+
+  assert.equal(app.downloads.length, 1);
+  assert.match(app.downloads[0].href, /^blob:/);
+  assert.equal(app.revokedUrls.length, 0, "der Link bleibt, bis der Browser den Download übernommen hat");
+
+  const timer = [...app.timers.values()].find(entry => entry.delay === 2000);
+  assert.ok(timer, "Freigabe nach 2 Sekunden geplant");
+  timer.callback();
+  assert.deepEqual(app.revokedUrls, [app.downloads[0].href]);
+});
+
+test("meldet verständlich, wenn der Download nicht gestartet werden kann", () => {
+  const app = createApp();
+  app.load("backup.js");
+  app.Kanban.initBackup(() => {});
+  app.sandbox.URL.createObjectURL = () => {
+    throw new Error("nicht verfügbar");
+  };
+
+  app.element("exp").onclick();
+
+  assert.equal(app.downloads.length, 0);
+  assert.match(app.element("dmsg").textContent, /Download konnte nicht gestartet werden/);
+  assert.doesNotMatch(app.element("dmsg").className, /ok/);
+});
+
+test("enthält keine Reste der Veröffentlichungsplattform mehr", () => {
+  for (const file of fs.readdirSync(path.join(projectRoot, "src"))) {
+    const source = fs.readFileSync(path.join(projectRoot, "src", file), "utf8");
+    assert.doesNotMatch(source, /claude/i, `${file} verweist noch auf die Plattform`);
+  }
 });
