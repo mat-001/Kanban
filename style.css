@@ -462,3 +462,49 @@ form button {
 .toast[hidden] {
     display: none
 }
+
+/* Nur die Spalten scrollen, Kopf und Fußzeile bleiben stehen */
+html:has(body.app) {
+    height: 100%
+}
+
+body.app {
+    height: 100%;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden
+}
+
+.app header,
+.app .notice {
+    flex-shrink: 0
+}
+
+/* Board füllt den ganzen Rest der Höhe, die Spalten werden vom Grid gestreckt */
+.app .board {
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+    padding: 8px 20px 0;
+    overflow-x: auto;
+    overflow-y: hidden
+}
+
+.app .col {
+    min-height: 0;
+    overflow-y: auto
+}
+
+/* Fußzeile */
+.foot {
+    flex-shrink: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    padding: 8px 20px;
+    border-top: 1px solid var(--bd);
+    background: var(--col);
+    color: var(--mut);
+    font-size: .78rem
+}

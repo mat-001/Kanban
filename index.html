@@ -10,6 +10,7 @@
 </head>
 
 <body>
+  <body class="app"></body>
   <div id="notice" class="notice" role="alert" hidden><span id="ntext"></span><button type="button" id="nclose"
       aria-label="Hinweis schließen">✕</button></div>
   <header>
@@ -76,6 +77,9 @@
     </form>
   </dialog>
   <div class="board" id="b"></div>
+  <footer class="foot" id="foot">
+    <span id="fa"></span><span id="fl"></span><span id="ft"></span>
+  </footer>
   <div id="toast" class="toast" role="status" hidden><span id="ttext"></span><button type="button"
       id="tundo">Rückgängig</button></div>
 
@@ -87,6 +91,7 @@
   <script src="src/summary.js"></script>
   <script src="src/ui-notifications.js"></script>
   <script src="src/ui-dialogs.js"></script>
+  <script src="src/ui-footer.js"></script>
   <script src="src/ui-board.js"></script>
   <script src="src/app.js"></script>
 

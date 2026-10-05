@@ -122,6 +122,7 @@
 
     function render() {
         $("b").replaceChildren(...COLS.map(createColumn));
+        if (Kanban.updateFooter) Kanban.updateFooter();
     }
 
     Object.assign(Kanban, { render });
