@@ -1,60 +1,77 @@
 # Kanban-Board
 
-Ein kleines, browserbasiertes Kanban-Board ohne Build-Schritt und ohne externe Laufzeitabhängigkeiten. Aufgaben und Einstellungen werden lokal im Browser gespeichert.
+Ein leichtgewichtiges Kanban-Board für die persönliche Aufgabenverwaltung. Die Anwendung besteht aus statischen HTML-, CSS- und JavaScript-Dateien, läuft vollständig im Browser und benötigt für den Betrieb weder einen Server noch einen Build-Schritt.
 
 ## Starten
 
-Das Projekt kann direkt im Browser geöffnet werden: `index.html`.
+`index.html` direkt im Browser öffnen. Alternativ kann das Projekt über einen beliebigen lokalen statischen HTTP-Server aufgerufen werden.
 
-Alternativ lässt es sich über einen lokalen HTTP-Server ausliefern. Das ist für Tests und Browser-Entwicklerwerkzeuge empfehlenswert. Die Anwendung benötigt keine Installation und keinen Build.
+Die Anwendung benötigt keine Installation. Für die Tests wird **Node.js 20 oder neuer** benötigt; es müssen keine zusätzlichen npm-Pakete installiert werden.
 
 ## Funktionen
 
-- Aufgaben mit Priorität, optionalem Zieltermin und Aufwand erfassen und bearbeiten
-- Aufgaben zwischen „Zu erledigen“, „In Arbeit“ und „Erledigt“ verschieben
-- Aufgaben per Pfeil-Schaltflächen oder Drag-and-drop bewegen
+- Aufgaben mit Titel, Priorität, Aufwand, optionalem Zieltermin und Link erstellen und bearbeiten
+- Aufgaben zwischen „Zu erledigen“, „In Arbeit“ und „Erledigt“ verschieben – per Pfeiltaste oder Drag-and-drop
 - Löschungen innerhalb von 10 Sekunden rückgängig machen
-- Aufgaben nach Frist, Priorität, Alterung und Ablagezeit ordnen
+- Aufgaben nach verpasstem spätestem Start, effektiver Priorität, spätestem Start und Erstellungszeit ordnen
 - Sicherheitspuffer und Prioritätsalterung konfigurieren
-- Verlauf und Zusammenfassung für bis zu 30 Tage ansehen
+- Verlauf und Zusammenfassung für Zeiträume von 1 bis 30 Tagen anzeigen
 - Aufgaben, Verlauf und Einstellungen als JSON-Datei exportieren und importieren
+- Speicherbelegung in der Fußzeile anzeigen
 - Helles und dunkles Farbschema entsprechend der Systemeinstellung
 
-Weitere Bedienhinweise stehen in der [Hilfe](help.html). Die technischen Details und Grenzen sind in der [Projektdokumentation](doku/projektdokumentation.md) beschrieben.
+Für Links zu Aufgaben werden nur `http://`, `https://` und `file://` akzeptiert. Dateilinks funktionieren nur, wenn `index.html` direkt von der Festplatte geöffnet wird; bei einem Aufruf über HTTP funktionieren sie nicht in allen Browsern.
+
+Ausführlichere Bedienhinweise stehen in der [Hilfe](help.html). Technische Details, Datenmodell und bekannte Grenzen beschreibt die [Projektdokumentation](doku/projektdokumentation.md).
 
 ## Daten und Datenschutz
 
-Die Anwendung überträgt keine Aufgaben an einen Server. Aufgaben, Protokoll und Einstellungen liegen im `localStorage` des verwendeten Browsers und Geräts. Das Löschen der Website-Daten oder die Nutzung eines privaten Fensters kann gespeicherte Daten entfernen. Für Sicherungen die Exportfunktion in den Einstellungen verwenden.
+Aufgaben, Verlauf und Einstellungen werden lokal im `localStorage` des jeweiligen Browserprofils gespeichert. Die Anwendung synchronisiert oder überträgt diese Daten nicht an einen Server. Beim Löschen der Website-Daten oder bei Verwendung eines privaten Fensters können Daten verloren gehen. Regelmäßige JSON-Exporte werden empfohlen.
+
+Importierte Sicherungen werden validiert. Aufgaben und Ereignisse werden bereinigt; doppelte Aufgaben werden übersprungen und ID-Kollisionen aufgelöst. Eine Sicherung aus einer neueren, nicht unterstützten Datenversion wird nicht importiert. Daten einer neueren Version im Browser bleiben schreibgeschützt, um sie nicht zu überschreiben.
 
 ## Tests
 
-Voraussetzung ist Node.js. Die Anwendung selbst benötigt Node.js nicht.
+Voraussetzung: Node.js 20 oder neuer.
 
 ```sh
 npm test
 ```
 
-Die Tests laufen mit dem eingebauten Node-Testläufer und benötigen keine zusätzlichen Pakete. Sie prüfen Fachlogik und wichtige Abläufe mit einer simulierten Browserumgebung. Sie sind keine vollständigen Tests in Chrome, Firefox oder Safari und prüfen weder visuelles Layout noch tatsächliche Tastatur- oder Screenreader-Bedienung.
+Der Befehl verwendet den eingebauten Node-Testläufer; ein `npm install` ist nicht erforderlich. Die Tests liegen in `tests/` und decken Fachlogik, Datums- und Sortierregeln, Speicher-/Versionsverwaltung, Import und Export, Links sowie ausgewählte UI-Abläufe ab.
 
-Der [Testplan](doku/testplan.md) beschreibt die geplanten manuellen und automatisierten Prüfungen.
+Die Tests führen die produktiven Skripte in einer simulierten Browserumgebung aus. Sie ersetzen keine echten Browserprüfungen für Layout, Browserkompatibilität, native Dialoge, Tastaturfokus oder Screenreader-Verhalten. Der [Testplan](doku/testplan.md) dokumentiert zusätzliche geplante Prüfungen.
 
 ## Projektstruktur
 
 ```text
 .
+├── .gitignore
+├── README.md
+├── Kanban.png
+├── package.json
 ├── index.html
 ├── help.html
 ├── style.css
 ├── src/
+│   ├── app.js
+│   ├── backup.js
 │   ├── dates.js
+│   ├── summary.js
 │   ├── sort.js
 │   ├── storage.js
 │   ├── task.js
-│   ├── backup.js
-│   ├── summary.js
-│   └── board.js
+│   ├── ui-board.js
+│   ├── ui-dialogs.js
+│   ├── ui-footer.js
+│   └── ui-notifications.js
 ├── tests/
-│   └── kanban.test.js
+│   ├── board-ui.test.js
+│   ├── backup.test.js
+│   ├── domain.test.js
+│   ├── link.test.js
+│   ├── storage.test.js
+│   └── test-helpers.js
 └── doku/
     ├── projektdokumentation.md
     └── testplan.md
