@@ -8,6 +8,10 @@
   },
   "scripts": {
     "test": "node --test",
+    "test:e2e": "playwright test",
     "build": "node build.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
   }
 }

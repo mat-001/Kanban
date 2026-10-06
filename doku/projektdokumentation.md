@@ -2,7 +2,7 @@
 
 ## Zweck und Umfang
 
-Das Kanban-Board ist eine statische Webanwendung zur persönlichen Aufgabenverwaltung. Es besteht aus HTML, CSS und klassischen JavaScript-Dateien, die direkt vom Browser geladen werden. Es gibt keinen Server, Build-Prozess, Framework oder externen Paketbedarf für die Anwendung.
+Das Kanban-Board ist eine statische Webanwendung zur persönlichen Aufgabenverwaltung. Es besteht aus HTML, CSS und klassischen JavaScript-Dateien, die direkt vom Browser geladen werden. Es gibt keinen Server, Framework oder externen Paketbedarf für die Anwendung. Pakete werden nur für die Browser-Tests gebraucht (siehe „Browser-Tests einrichten“).
 
 ## Einstiegspunkte und Module
 
@@ -94,9 +94,47 @@ Die Tests liegen in `tests/` und sind nach Themen aufgeteilt: `domain.test.js` (
 
 Die simulierte DOM-Umgebung ist kein vollständiger Browser. Tatsächliche Darstellung, Browserkompatibilität, HTML-Parsing, Tastaturfokus, native Dialogfunktionen und Screenreader-Verhalten benötigen ergänzende Prüfungen in realen Browsern.
 
+## Browser-Tests einrichten (e2e)
+
+Die Browser-Tests im Ordner `e2e/` nutzen Playwright und prüfen die Seite in Chromium, Firefox und WebKit (Engine von Safari). Sie sind bewusst von `npm test` getrennt, weil sie deutlich langsamer sind.
+
+Voraussetzung: Node.js ab Version 20 (siehe `engines` in `package.json`).
+
+**Einmalig nach dem Herunterladen des Projekts:**
+
+```sh
+npm install
+npx playwright install
+```
+
+- `npm install` liest `package.json` und `package-lock.json` und legt den Ordner `node_modules/` an. Dieser Ordner gehört nicht zum Projekt, steht in `.gitignore` und kann jederzeit gelöscht und neu erzeugt werden.
+- `npx playwright install` lädt die Testbrowser herunter. Sie liegen nicht im Projekt, sondern im Benutzerverzeichnis (auf dem Mac unter `~/Library/Caches/ms-playwright`) und müssen nur einmal pro Rechner und Playwright-Version geladen werden.
+
+**Tests starten:**
+
+```sh
+npm run test:e2e
+```
+
+**Wann:** Die schnellen Tests (`npm test`) laufen bei jeder Änderung, die Browser-Tests vor größeren Änderungen oder vor einer Veröffentlichung.
+
+**Hinweise:**
+
+- Die Tests öffnen `index.html` direkt als Datei (`file://`), so wie die Seite auch im Alltag genutzt wird.
+- Playwright legt beim Lauf die Ordner `test-results/` und `playwright-report/` an. Beide stehen in `.gitignore`.
+- WebKit in Playwright ist nah an Safari, aber nicht identisch. Das Verhalten bei Dateilinks in Safari wird weiterhin von Hand geprüft.
+- Neue Browser-Tests gehören in `e2e/` und enden auf `.spec.js`. Dateien in `tests/` sind nur für `node --test` gedacht.
+- `npx playwright test --project=chromium` testet nur in einem Browser und ist deutlich schneller.
+- `npx playwright test --ui` öffnet eine Oberfläche, in der du Tests einzeln startest und siehst, was der Browser tut.
+- Ein einzelner Test: `npx playwright test -g "Escape"`.
+
+## Website bereitstellen
+
+`npm run build` kopiert nur `index.html`, `help.html`, `style.css`, `Kanban.png` und `src/` in den Ordner `dist/`. Nur dieser Ordner wird veröffentlicht. Tests, `package.json` und `node_modules` bleiben draußen. Dateilinks funktionieren auf einer veröffentlichten Seite nicht, und die Aufgaben liegen im Browserspeicher der jeweiligen Adresse (Export und Import zum Umziehen).
+
 ## Bekannte Grenzen
 
 - Die Daten sind nicht zwischen Geräten synchronisiert und nicht serverseitig gesichert.
 - Feiertage und individuelle Arbeitszeitkalender werden nicht berücksichtigt.
-- Die Oberfläche ist für die direkte Bedienung im Browser ausgelegt; echte Cross-Browser- und Accessibility-Tests sind nicht Bestandteil der Node-Tests.
+- Die Oberfläche ist für die direkte Bedienung im Browser ausgelegt; echte Cross-Browser- und Accessibility-Tests sind nicht Bestandteil der Node-Tests. Sie werden durch die e2e-Tests abgedeckt.
 - Änderungen am Datenformat laufen über `DATA_VERSION` und `MIGRATIONS` in `src/storage.js`. Daten einer neueren Version werden nur gelesen und nie überschrieben; Import ist dann gesperrt, Export weiterhin möglich.
