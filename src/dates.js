@@ -20,6 +20,12 @@
   const isWorkday = date => date.getDay() !== 0 && date.getDay() !== 6;
   const clampEffort = value => Math.min(MAX_EFFORT, Math.max(0, Number.isFinite(value) ? value : 0));
   const clampSetting = value => Math.min(MAX_SETTING, Math.max(0, Number.isFinite(value) ? Math.trunc(value) : 0));
+  const cleanLink = text => {
+    let link = String(text || "").trim().slice(0, 500);
+    // Leerzeichen in Dateipfaden (z. B. "Meine Dokumente") werden als %20 geschrieben
+    if (/^file:\/\//i.test(link)) link = link.replace(/ /g, "%20");
+    return /^(https?|file):\/\/\S+$/i.test(link) ? link : "";
+  };
 
   function lastStart(task, buffer) {
     if (!task.due) return null;
@@ -41,7 +47,7 @@
   }
 
   Object.assign(Kanban, {
-    fmt, fmtD, today, ymd, ageDays, lastStart,
+    fmt, fmtD, today, ymd, ageDays, lastStart, cleanLink,
     MAX_EFFORT, MAX_SETTING, clampEffort, clampSetting
   });
 })(window.Kanban ||= {});

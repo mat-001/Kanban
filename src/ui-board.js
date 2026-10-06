@@ -64,6 +64,16 @@
         const title = document.createElement("div");
         title.textContent = task.t;
         body.append(title, createTaskMetadata(task, column));
+        if (task.l) {
+            const link = document.createElement("a");
+            link.href = task.l;
+            link.textContent = "🔗 Link öffnen";
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.className = "tlink";
+            link.draggable = false;
+            body.appendChild(link);
+        }
 
         const actions = document.createElement("div");
         actions.className = "mv";

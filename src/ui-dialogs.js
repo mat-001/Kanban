@@ -1,5 +1,5 @@
 (function (Kanban) {
-    const { MAX_EFFORT, MAX_SETTING, clampEffort, clampSetting } = Kanban;
+    const { MAX_EFFORT, MAX_SETTING, clampEffort, clampSetting, cleanLink } = Kanban;
     const { addTask, saveSetting, state, updateTask } = Kanban;
     const { hideNotice, showNotice } = Kanban;
     const $ = id => document.getElementById(id);
@@ -36,6 +36,7 @@
         $("ee").value = task.e || 0;
         resetDate("ed");
         $("ed").value = task.due || "";
+        $("el").value = task.l || "";
         $("emsg").hidden = true;
         $("edlg").showModal();
         $("et").focus();
@@ -69,6 +70,14 @@
                 return;
             }
 
+            const linkText = $("l").value.trim();
+            const link = cleanLink(linkText);
+            if (linkText && !link) {
+                showMessage("Der Link muss mit http:// https:// oder file:// beginnen.");
+                $("l").focus();
+                return;
+            }
+
             const now = Date.now();
             addTask({
                 id: now,
@@ -77,11 +86,13 @@
                 p: $("p").value,
                 created: now,
                 due: dueInput.value,
-                e: clampEffort(effort)
-            });
+                e: clampEffort(effort),
+                ...(link && { l: link })
+            })
             titleInput.value = "";
             resetDate();
             $("e").value = "1";
+            $("l").value = "";
             render();
         };
 
@@ -114,11 +125,20 @@
                 return;
             }
 
+            const linkText = $("el").value.trim();
+            const link = cleanLink(linkText);
+            if (linkText && !link) {
+                showMessage("Der Link muss mit http:// https:// oder file:// beginnen.", "", "emsg", "ed");
+                $("el").focus();
+                return;
+            }
+
             updateTask(editing, {
                 t: title,
                 p: $("ep").value,
                 due: $("ed").value,
-                e: clampEffort(effort)
+                e: clampEffort(effort),
+                l: link
             });
             render();
             editDialog.close();

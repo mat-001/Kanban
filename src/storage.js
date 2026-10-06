@@ -1,5 +1,5 @@
 (function (Kanban) {
-  const { RANK, TOK, clampEffort, clampSetting } = Kanban;
+  const { RANK, TOK, clampEffort, clampSetting, cleanLink } = Kanban;
 
   const LOG_MAX = 1000;
   const LOG_DAYS = 30;
@@ -57,6 +57,8 @@
       due: typeof value.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.due) ? value.due : "",
       e: clampEffort(isNumber(value.e) ? value.e : 0)
     };
+    const link = cleanLink(value.l);
+    if (link) task.l = link;
 
     if (task.c === "done" && isNumber(value.doneAt)) task.doneAt = value.doneAt;
     if (isNumber(value.since)) task.since = value.since;

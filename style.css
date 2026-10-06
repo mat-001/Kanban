@@ -508,3 +508,10 @@ body.app {
     color: var(--mut);
     font-size: .78rem
 }
+
+.tlink {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: .78rem;
+    color: var(--ac)
+}

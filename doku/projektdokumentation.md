@@ -9,13 +9,17 @@ Das Kanban-Board ist eine statische Webanwendung zur persönlichen Aufgabenverwa
 - `index.html` enthält das Board, Formulare, Dialoge und lädt die JavaScript-Dateien in ihrer benötigten Reihenfolge.
 - `help.html` enthält die Bedienhilfe.
 - `style.css` definiert Layout, responsive Spalten, Dialoge und helle/dunkle Farbschemata.
-- `src/dates.js` berechnet Datumsdarstellungen, Wartezeit und spätesten Start.
+- `src/dates.js` berechnet Datumsdarstellungen, Wartezeit und spätesten Start und enthält kleine Prüffunktionen (`clampEffort`, `clampSetting`, `cleanLink`).
 - `src/sort.js` definiert Board-Spalten, Prioritätsrang und Sortierung.
 - `src/storage.js` initialisiert Zustand, bereinigt lokale Daten und verwaltet Speicherung sowie Verlaufsgrenzen.
 - `src/task.js` enthält Aktionen zum Anlegen, Aktualisieren, Verschieben, Löschen und Wiederherstellen.
 - `src/backup.js` exportiert und importiert JSON-Sicherungen.
 - `src/summary.js` erstellt die Verlaufs- und Statuszusammenfassung.
-- `src/board.js` verbindet Zustand und Funktionen mit DOM-Ereignissen und rendert das Board.
+- `src/ui-notifications.js` zeigt Hinweisleiste und Rückgängig-Meldung.
+- `src/ui-dialogs.js` verbindet Formular, Bearbeiten-Fenster und Einstellungen.
+- `src/ui-footer.js` berechnet und zeigt den Speicherverbrauch in der Fußzeile.
+- `src/ui-board.js` rendert Spalten und Karten.
+- `src/app.js` startet alle Module.
 
 Die Module hängen ihre Funktionen an `window.Kanban`. Die Script-Reihenfolge in `index.html` ist relevant: Datums- und Sortierfunktionen werden vor Speicherung, Aufgabenaktionen und Oberfläche geladen.
 
@@ -34,6 +38,7 @@ Eine Aufgabe enthält im Regelfall:
 | `e` | geschätzter Aufwand in Stunden |
 | `doneAt` | Zeitstempel beim Erledigen; optional |
 | `since` | Zeitpunkt, ab dem die aktuelle Wartezeit läuft; optional |
+| `l` | optionaler Link; nur `http://`, `https://` oder `file://`, höchstens 500 Zeichen |
 
 Der Verlauf besteht aus Zeitstempel (`ts`), Ereignistyp (`k`) und gekürztem Titel (`t`). Es werden maximal 1000 gültige Einträge aus den letzten 30 Tagen behalten.
 
@@ -48,11 +53,24 @@ Der Verlauf besteht aus Zeitstempel (`ts`), Ereignistyp (`k`) und gekürztem Tit
 - Beim Zurückschieben aus „In Arbeit“ nach „Zu erledigen“ beginnt die Wartezeit neu. Beim Wiederöffnen einer erledigten Aufgabe beginnt sie ebenfalls neu.
 - Löschen bietet für 10 Sekunden eine Wiederherstellung an.
 
+## Links an Aufgaben
+
+- Erlaubt sind `http://`, `https://` und `file://`. Alles andere (etwa `javascript:` oder `data:`) wird abgelehnt.
+- Die Prüfung steckt in `cleanLink` (`src/dates.js`) und läuft an drei Stellen: beim Anlegen und Bearbeiten, beim Laden aus dem Speicher und beim Import. `cleanTask` ruft sie für Speicher und Import auf.
+- Leerzeichen in `file://`-Pfaden werden zu `%20`, Links werden auf 500 Zeichen gekürzt.
+- Auf der Karte wird der Link mit `href` und `textContent` gesetzt (nie über `innerHTML`) und mit `rel="noopener noreferrer"` geöffnet.
+- Dateilinks funktionieren nur, wenn die Seite direkt als Datei geöffnet wird. In Safari blockiert der normale Klick sie meist; Rechtsklick → „In neuem Tab öffnen“ funktioniert.
+
+## Fußzeile
+
+Die Fußzeile zeigt den belegten Browser-Speicher für Aufgaben (`kanban`) und Protokoll (`kanban_log`) sowie die Summe. Die Prozentangabe bezieht sich auf eine grobe Annahme von 5 MB; das tatsächliche Limit hängt vom Browser ab. Angezeigt wird der Wert, der wirklich gespeichert ist, nicht der im Arbeitsspeicher.
+
 ## Speicherung und Sicherungen
 
 Die Browserdaten werden unter diesen `localStorage`-Schlüsseln abgelegt:
 
 - `kanban`: Aufgaben
+- `kanban_version`: Datenversion der gespeicherten Aufgaben
 - `kanban_log`: Verlaufsereignisse
 - `kanban_buf`: Sicherheitspuffer
 - `kanban_age`: Alterungsintervall
@@ -72,7 +90,7 @@ Automatisierte Tests werden mit Node.js ausgeführt:
 npm test
 ```
 
-`tests/kanban.test.js` lädt die produktiven Skripte in einer isolierten VM mit kontrollierter Uhr, simuliertem `localStorage` und einer vereinfachten DOM-Umgebung. So sind Fachregeln und zentrale Abläufe wiederholbar testbar, ohne Browserpakete zu installieren.
+Die Tests liegen in `tests/` und sind nach Themen aufgeteilt: `domain.test.js` (Fachregeln), `storage.test.js` (Speicherung, Versionen), `backup.test.js` (Export und Import), `board-ui.test.js` (Oberfläche) und `link.test.js` (Links). `test-helpers.js` lädt die produktiven Skripte in einer isolierten VM mit kontrollierter Uhr, simuliertem `localStorage` und einer vereinfachten DOM-Umgebung. So sind Fachregeln und zentrale Abläufe wiederholbar testbar, ohne Browserpakete zu installieren.
 
 Die simulierte DOM-Umgebung ist kein vollständiger Browser. Tatsächliche Darstellung, Browserkompatibilität, HTML-Parsing, Tastaturfokus, native Dialogfunktionen und Screenreader-Verhalten benötigen ergänzende Prüfungen in realen Browsern.
 
@@ -81,4 +99,4 @@ Die simulierte DOM-Umgebung ist kein vollständiger Browser. Tatsächliche Darst
 - Die Daten sind nicht zwischen Geräten synchronisiert und nicht serverseitig gesichert.
 - Feiertage und individuelle Arbeitszeitkalender werden nicht berücksichtigt.
 - Die Oberfläche ist für die direkte Bedienung im Browser ausgelegt; echte Cross-Browser- und Accessibility-Tests sind nicht Bestandteil der Node-Tests.
-- Es gibt kein Schema-Migrationssystem für zukünftige Änderungen am Sicherungsformat; die Sicherung enthält derzeit Version `1`.
+- Änderungen am Datenformat laufen über `DATA_VERSION` und `MIGRATIONS` in `src/storage.js`. Daten einer neueren Version werden nur gelesen und nie überschrieben; Import ist dann gesperrt, Export weiterhin möglich.
