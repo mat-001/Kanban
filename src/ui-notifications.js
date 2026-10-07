@@ -1,5 +1,5 @@
 (function (Kanban) {
-    const { DATA_VERSION, deleteTask, dismissUndo, state, undoDelete } = Kanban;
+    const { DATA_VERSION, RECOVERY_DAYS, deleteTask, dismissUndo, state, undoDelete } = Kanban;
     const $ = id => document.getElementById(id);
 
     let noticeKind = null;
@@ -38,7 +38,7 @@
         if (state.loadProblem) {
             let details = "";
             if (state.recoveryCopySaved) {
-                details = " Die Originaldaten wurden als Sicherheitskopie im Browser abgelegt.";
+                details = ` Die Originaldaten wurden als Sicherheitskopie im Browser abgelegt und nach ${RECOVERY_DAYS} Tagen automatisch gelöscht.`;
             } else if (state.recoveryCopyAttempted) {
                 details = " Die Sicherheitskopie konnte nicht im Browser abgelegt werden.";
             }

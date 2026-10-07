@@ -3,6 +3,7 @@
 
   const LOG_MAX = 1000;
   const LOG_DAYS = 30;
+  const RECOVERY_DAYS = 30;
   const LOG_KINDS = ["add", "start", "done", "back", "del"];
 
   // Version des Datenformats im Browser-Speicher (Schlüssel "kanban_version"). Ändert sich das Format,
@@ -128,6 +129,11 @@
       try {
         localStorage.setItem("kanban_defekt", raw);
         state.recoveryCopySaved = true;
+        try {
+          localStorage.setItem("kanban_defekt_ts", String(Date.now()));
+        } catch (error) {
+          // Ohne Zeitstempel bekommt die Kopie beim nächsten Start einen.
+        }
       } catch (error) {
         state.recoveryCopySaved = false;
       }
@@ -145,7 +151,27 @@
       due: "",
       e: 1
     }];
+    save();
   }
+
+  // Räumt eine alte Sicherheitskopie auf. Solange ein Problem besteht oder die Daten schreibgeschützt sind,
+  // bleibt sie unberührt. Kopien ohne Zeitstempel (aus älteren Versionen) bekommen jetzt einen.
+  function cleanupRecoveryCopy() {
+    if (state.readOnly || state.loadProblem) return;
+    try {
+      if (localStorage.getItem("kanban_defekt") === null) return;
+      const savedAt = Number(localStorage.getItem("kanban_defekt_ts"));
+      if (!Number.isFinite(savedAt) || savedAt <= 0) {
+        localStorage.setItem("kanban_defekt_ts", String(Date.now()));
+      } else if (Date.now() - savedAt > RECOVERY_DAYS * 864e5) {
+        localStorage.removeItem("kanban_defekt");
+        localStorage.removeItem("kanban_defekt_ts");
+      }
+    } catch (error) {
+      // Aufräumen ist nicht kritisch.
+    }
+  }
+  cleanupRecoveryCopy();
 
   function readSetting(key, fallback) {
     try {
@@ -245,6 +271,7 @@
   Object.assign(Kanban, {
     LOG_MAX,
     LOG_DAYS,
+    RECOVERY_DAYS,
     LOG_KINDS,
     LBL,
     DATA_VERSION,

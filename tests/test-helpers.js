@@ -55,6 +55,7 @@ function getAllFiles(dir) {
 
 function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLength = {}, patch = {} } = {}) {
     const storedValues = new Map(Object.entries({ kanban: "[]", ...storage }));
+    if (storage.kanban === null) storedValues.delete("kanban"); // leerer Speicher = erster Start
     const failedKeys = new Set(failWrites);
     const valueLimits = new Map(Object.entries(maxValueLength));
     const writes = [];
@@ -193,6 +194,10 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
                 if (failedKeys.has(key)) throw new Error("Storage unavailable");
                 if (valueLimits.has(key) && String(value).length > valueLimits.get(key)) throw new Error("Quota exceeded");
                 storedValues.set(key, String(value));
+            },
+            removeItem(key) {
+                writes.push(key);
+                storedValues.delete(key);
             }
         }
     };

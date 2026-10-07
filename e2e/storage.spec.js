@@ -100,3 +100,12 @@ test("lehnt eine ungültige Importdatei ab", async ({ page }) => {
     await page.locator("#close").click();
     await expect(card(page, "Bleibt")).toBeVisible();
 });
+
+test("legt die Beispielaufgabe beim ersten Start dauerhaft ab", async ({ page }) => {
+    await openBoard(page);
+    const first = await page.evaluate(() => localStorage.getItem("kanban"));
+    expect(JSON.parse(first)).toHaveLength(1);
+
+    await page.reload();
+    expect(await page.evaluate(() => localStorage.getItem("kanban"))).toBe(first);
+});

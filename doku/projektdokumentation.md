@@ -52,6 +52,7 @@ Der Verlauf besteht aus Zeitstempel (`ts`), Ereignistyp (`k`) und gekürztem Tit
 - Erledigte Aufgaben werden nach Erledigungszeit absteigend sortiert.
 - Beim Zurückschieben aus „In Arbeit“ nach „Zu erledigen“ beginnt die Wartezeit neu. Beim Wiederöffnen einer erledigten Aufgabe beginnt sie ebenfalls neu.
 - Löschen bietet für 10 Sekunden eine Wiederherstellung an.
+- Beim ersten Start (leerer Speicher) wird eine Beispielaufgabe angelegt und sofort gespeichert. Wird sie gelöscht, kommt sie nicht wieder.
 
 ## Links an Aufgaben
 
@@ -74,7 +75,8 @@ Die Browserdaten werden unter diesen `localStorage`-Schlüsseln abgelegt:
 - `kanban_log`: Verlaufsereignisse
 - `kanban_buf`: Sicherheitspuffer
 - `kanban_age`: Alterungsintervall
-- `kanban_defekt`: Sicherung beschädigter Rohdaten, wenn die Wiederherstellung beim Laden versucht wird
+- `kanban_defekt`: Sicherung beschädigter Rohdaten, wenn die Wiederherstellung beim Laden versucht wird. Sie wird 30 Tage nach dem letzten Fehler automatisch gelöscht.
+- `kanban_defekt_ts`: Zeitpunkt der Sicherung beschädigter Rohdaten (für das automatische Löschen)
 
 Die Speicherung erfolgt lokal im Browserprofil. Ist der Speicher nicht verfügbar oder voll, meldet die Oberfläche den Fehler; eine erfolgreiche dauerhafte Speicherung ist dann nicht garantiert. Nutzer sollten regelmäßig exportieren.
 

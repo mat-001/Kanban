@@ -202,3 +202,46 @@ test("Daten mit Version 3 sind für eine Seite mit Datenversion 2 schreibgeschü
     const current = createApp({ storage: { kanban: "[]", kanban_version: "2" }, patch: withVersion(2) });
     assert.equal(current.Kanban.state.readOnly, false);
 });
+
+test("legt die Beispielaufgabe beim ersten Start dauerhaft ab", () => {
+    const first = createApp({ storage: { kanban: null } });
+    assert.equal(first.Kanban.state.tasks.length, 1);
+    assert.equal(first.storedValues.has("kanban"), true);
+
+    // Neuladen einen Tag später: dieselbe Aufgabe, keine neue Kennung
+    const reloaded = createApp({
+        storage: { kanban: null, ...Object.fromEntries(first.storedValues) },
+        now: FIXED_NOW + DAY_MS
+    });
+    assert.equal(reloaded.Kanban.state.tasks.length, 1);
+    assert.equal(reloaded.Kanban.state.tasks[0].id, first.Kanban.state.tasks[0].id);
+});
+
+test("räumt die Sicherheitskopie beschädigter Daten nach 30 Tagen auf", () => {
+    const old = createApp({ storage: { kanban_defekt: "{x", kanban_defekt_ts: String(FIXED_NOW - 31 * DAY_MS) } });
+    assert.equal(old.storedValues.has("kanban_defekt"), false);
+    assert.equal(old.storedValues.has("kanban_defekt_ts"), false);
+
+    const recent = createApp({ storage: { kanban_defekt: "{x", kanban_defekt_ts: String(FIXED_NOW - 5 * DAY_MS) } });
+    assert.equal(recent.storedValues.get("kanban_defekt"), "{x");
+
+    const legacy = createApp({ storage: { kanban_defekt: "{x" } });
+    assert.equal(legacy.storedValues.get("kanban_defekt"), "{x");
+    assert.equal(legacy.storedValues.get("kanban_defekt_ts"), String(FIXED_NOW));
+});
+
+test("behält die Sicherheitskopie, solange das Problem besteht, und erneuert den Zeitpunkt", () => {
+    const app = createApp({
+        storage: { kanban: "{invalid", kanban_defekt: "alt", kanban_defekt_ts: String(FIXED_NOW - 40 * DAY_MS) }
+    });
+    assert.equal(app.storedValues.get("kanban_defekt"), "{invalid");
+    assert.equal(app.storedValues.get("kanban_defekt_ts"), String(FIXED_NOW));
+});
+
+test("rührt die Sicherheitskopie bei Daten einer neueren Version nicht an", () => {
+    const app = createApp({
+        storage: { kanban: "[]", kanban_version: "2", kanban_defekt: "{x", kanban_defekt_ts: String(FIXED_NOW - 40 * DAY_MS) }
+    });
+    assert.equal(app.storedValues.has("kanban_defekt"), true);
+    assert.equal(app.writes.length, 0);
+});
