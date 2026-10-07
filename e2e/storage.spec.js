@@ -109,3 +109,16 @@ test("legt die Beispielaufgabe beim ersten Start dauerhaft ab", async ({ page })
     await page.reload();
     expect(await page.evaluate(() => localStorage.getItem("kanban"))).toBe(first);
 });
+
+test("nennt beim Import ohne Einstellungen keine Einstellungen in der Meldung", async ({ page }) => {
+    await openBoard(page, []);
+    await page.locator("#gear").click();
+    await page.locator("#impfile").setInputFiles({
+        name: "ohne-einstellungen.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify({ tasks: [{ id: 1, t: "Ohne Einstellungen" }] }))
+    });
+
+    await expect(page.locator("#dmsg")).toContainText("1 Aufgabe hinzugefügt");
+    await expect(page.locator("#dmsg")).not.toContainText("Einstellungen");
+});

@@ -96,6 +96,7 @@
       ["buffer", "buf"],
       ["step", "age"]
     ];
+    const applied = [];
     const failed = [];
 
     values.forEach(([key, inputId]) => {
@@ -103,10 +104,11 @@
       if (!validSetting(value)) return;
 
       state[key] = value;
+      applied.push(key);
       if (!saveSetting(key, value)) failed.push(key);
       $(inputId).value = value;
     });
-    return failed;
+    return { applied, failed };
   }
 
   async function importFile(file, render) {
@@ -144,8 +146,9 @@
 
     const result = importTasks(migrate(backup.tasks, fileVersion));
     importLog(backup.log);
-    const failedSettings = importSettings(backup.settings || {});
+    const settings = importSettings(backup.settings || {});
     const settingNames = { buffer: "Sicherheitspuffer", step: "Alterung" };
+    const names = keys => keys.map(key => settingNames[key]).join(" und ");
     save();
     saveLog();
     render();
@@ -154,11 +157,14 @@
       `${result.added} Aufgabe${result.added === 1 ? "" : "n"} hinzugefügt, ` +
       `${result.skipped} schon vorhanden` +
       (result.invalid ? `, ${result.invalid} ungültig übersprungen` : "") +
-      ". Einstellungen aus der Datei wurden übernommen." +
-      (failedSettings.length
-        ? ` ${failedSettings.map(key => settingNames[key]).join(" und ")} konnten nicht dauerhaft gespeichert werden.`
+      "." +
+      (settings.applied.length
+        ? ` Einstellungen aus der Datei wurden übernommen (${names(settings.applied)}).`
+        : "") +
+      (settings.failed.length
+        ? ` ${names(settings.failed)} ${settings.failed.length === 1 ? "konnte" : "konnten"} nicht dauerhaft gespeichert werden.`
         : ""),
-      !failedSettings.length
+      !settings.failed.length
     );
   }
 

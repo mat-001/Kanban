@@ -258,3 +258,38 @@ test("meldet verständlich, wenn der Download nicht gestartet werden kann", () =
     assert.match(app.element("dmsg").textContent, /Download konnte nicht gestartet werden/);
     assert.doesNotMatch(app.element("dmsg").className, /ok/);
 });
+
+test("nennt Einstellungen in der Importmeldung nur, wenn die Datei gültige enthielt", async () => {
+    const app = createApp();
+    app.load("backup.js");
+    app.Kanban.initBackup(() => { });
+    const message = () => app.element("dmsg").textContent;
+
+    await importText(app, JSON.stringify({ tasks: [task(100)] }));
+    assert.doesNotMatch(message(), /Einstellungen/);
+
+    await importText(app, JSON.stringify({ tasks: [task(101)], settings: { buffer: -1, step: 366 } }));
+    assert.doesNotMatch(message(), /Einstellungen/);
+    assert.equal(app.Kanban.state.buffer, 1);
+    assert.equal(app.Kanban.state.step, 7);
+
+    await importText(app, JSON.stringify({ tasks: [task(102)], settings: { buffer: 4 } }));
+    assert.match(message(), /übernommen \(Sicherheitspuffer\)/);
+    assert.doesNotMatch(message(), /Alterung/);
+    assert.equal(app.Kanban.state.step, 7);
+
+    await importText(app, JSON.stringify({ tasks: [task(103)], settings: { buffer: 2, step: 3 } }));
+    assert.match(message(), /übernommen \(Sicherheitspuffer und Alterung\)/);
+});
+
+test("warnt, wenn eine importierte Einstellung nicht dauerhaft gespeichert werden kann", async () => {
+    const app = createApp({ failWrites: ["kanban_buf"] });
+    app.load("backup.js");
+    app.Kanban.initBackup(() => { });
+
+    await importText(app, JSON.stringify({ tasks: [task(110)], settings: { buffer: 4, step: 3 } }));
+
+    assert.match(app.element("dmsg").textContent, /Sicherheitspuffer konnte nicht dauerhaft gespeichert werden/);
+    assert.doesNotMatch(app.element("dmsg").className, /ok/);
+    assert.equal(app.Kanban.state.buffer, 4);
+});

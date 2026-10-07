@@ -80,7 +80,7 @@ Die Browserdaten werden unter diesen `localStorage`-Schlüsseln abgelegt:
 
 Die Speicherung erfolgt lokal im Browserprofil. Ist der Speicher nicht verfügbar oder voll, meldet die Oberfläche den Fehler; eine erfolgreiche dauerhafte Speicherung ist dann nicht garantiert. Nutzer sollten regelmäßig exportieren.
 
-Eine JSON-Sicherung enthält `format`, `version`, `exportedAt`, `tasks`, `log` und `settings`. Beim Import werden gültige Aufgaben hinzugefügt; vorhandene Aufgaben werden anhand ihrer ID/Titel-Kombination oder ihrer vollständigen Aufgabenfelder erkannt. ID-Kollisionen werden durch eine freie numerische ID gelöst. Verlaufseinträge werden validiert und dedupliziert. Einstellungen werden übernommen, wenn sie ganzzahlig und im Bereich 0 bis 365 liegen.
+Eine JSON-Sicherung enthält `format`, `version`, `exportedAt`, `tasks`, `log` und `settings`. Beim Import werden gültige Aufgaben hinzugefügt; vorhandene Aufgaben werden anhand ihrer ID/Titel-Kombination oder ihrer vollständigen Aufgabenfelder erkannt. ID-Kollisionen werden durch eine freie numerische ID gelöst. Verlaufseinträge werden validiert und dedupliziert. Einstellungen werden übernommen, wenn sie ganzzahlig und im Bereich 0 bis 365 liegen. Die Importmeldung nennt nur die Einstellungen, die wirklich übernommen wurden.
 
 ## Ausführen und Testen
 
