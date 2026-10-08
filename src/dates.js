@@ -28,6 +28,12 @@
     if (/^file:\/\//i.test(link)) link = link.replace(/ /g, "%20");
     return link.length <= MAX_LINK && /^(https?|file):\/\/\S+$/i.test(link) ? link : "";
   };
+  const isRealDate = text => {
+    if (typeof text !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(text)) return false;
+    const [year, month, day] = text.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+  };
 
   function lastStart(task, buffer) {
     if (!task.due) return null;
@@ -49,7 +55,7 @@
   }
 
   Object.assign(Kanban, {
-    fmt, fmtD, today, ymd, ageDays, lastStart, cleanLink,
+    fmt, fmtD, today, ymd, ageDays, lastStart, cleanLink, isRealDate, isWorkday,
     MAX_EFFORT, MAX_SETTING, MAX_LINK, clampEffort, clampSetting
   });
 })(window.Kanban ||= {});

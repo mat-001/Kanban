@@ -34,7 +34,7 @@ Eine Aufgabe enthält im Regelfall:
 | `c` | Spalte: `todo`, `doing` oder `done` |
 | `p` | Priorität: `hoch`, `mittel` oder `niedrig` |
 | `created` | Erstellungszeit als Zeitstempel |
-| `due` | optionaler Zieltermin im Format `YYYY-MM-DD` |
+| `due` | optionaler Zieltermin im Format `YYYY-MM-DD`; muss ein Datum sein, das es im Kalender gibt (nicht z. B. der 31. Februar) |
 | `e` | geschätzter Aufwand in Stunden |
 | `doneAt` | Zeitstempel beim Erledigen; optional |
 | `since` | Zeitpunkt, ab dem die aktuelle Wartezeit läuft; optional |

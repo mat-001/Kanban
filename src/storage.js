@@ -1,5 +1,5 @@
 (function (Kanban) {
-  const { RANK, TOK, clampEffort, clampSetting, cleanLink } = Kanban;
+  const { RANK, TOK, clampEffort, clampSetting, cleanLink, isRealDate } = Kanban;
 
   const LOG_MAX = 1000;
   const LOG_DAYS = 30;
@@ -55,7 +55,7 @@
       c: TOK.includes(value.c) ? value.c : "todo",
       p: typeof value.p === "string" && Object.hasOwn(RANK, value.p) ? value.p : "mittel",
       created,
-      due: typeof value.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.due) ? value.due : "",
+      due: isRealDate(value.due) ? value.due : "",
       e: clampEffort(isNumber(value.e) ? value.e : 0)
     };
     const link = cleanLink(value.l);
