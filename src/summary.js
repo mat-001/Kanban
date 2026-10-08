@@ -10,9 +10,10 @@
     }, {});
   }
 
-  function appendTextElement(parent, tag, text) {
+  function appendTextElement(parent, tag, text, className = "") {
     const element = document.createElement(tag);
     element.textContent = text;
+    if (className) element.className = className;
     parent.appendChild(element);
     return element;
   }
@@ -53,20 +54,23 @@
       box,
       "p",
       `Angelegt: ${counts.add || 0} · In Arbeit gestartet: ${counts.start || 0} · ` +
-      `Erledigt: ${counts.done || 0} · Gelöscht: ${counts.del || 0}`
+      `Erledigt: ${counts.done || 0} · Gelöscht: ${counts.del || 0}`,
+      "s-bilanz"
     );
     appendTextElement(box, "h3", "Aktueller Stand");
     appendTextElement(
       box,
       "p",
-      `Zu erledigen: ${todoCount} · In Arbeit: ${doingCount} · Mit verpasstem Start: ${missedCount}`
+      `Zu erledigen: ${todoCount} · In Arbeit: ${doingCount} · Mit verpasstem Start: ${missedCount}`,
+      "s-stand"
     );
     appendTextElement(box, "h3", "Verlauf");
 
     if (!events.length) {
-      appendTextElement(box, "p", `In den letzten ${periodLabel} ist nichts passiert.`);
+      appendTextElement(box, "p", `In den letzten ${periodLabel} ist nichts passiert.`, "s-verlauf");
     } else {
       const list = document.createElement("ul");
+      list.className = "s-verlauf";
       events.forEach(event => {
         const timestamp = new Date(event.ts).toLocaleString("de-DE", {
           day: "2-digit",

@@ -244,18 +244,29 @@ function submitEvent() {
     return { preventDefault() { } };
 }
 
+// Sucht Nachfahren eines Elements anhand ihres Klassennamens (unabhängig von ihrer Position).
+function findAll(root, className) {
+    const found = [];
+    const visit = node => {
+        for (const child of node.children || []) {
+            if (String(child.className || "").split(/\s+/).includes(className)) found.push(child);
+            visit(child);
+        }
+    };
+    visit(root);
+    return found;
+}
+
+const find = (root, className) => findAll(root, className)[0] || null;
+const columnFor = (app, key) => find(app.element("b"), `col-${key}`);
+
 function cardFor(app, title) {
-    for (const column of app.element("b").children) {
-        const card = column.children.find(child =>
-            child.className.startsWith("card ") &&
-            child.children[0].children[0].textContent === title);
-        if (card) return card;
-    }
-    return null;
+    return findAll(app.element("b"), "card")
+        .find(card => find(card, "ttitle")?.textContent === title) || null;
 }
 
 function actionButton(card, label) {
-    return card.children[1].children.find(button => button.textContent === label);
+    return find(card, "mv").children.find(button => button.textContent === label);
 }
 
 function task(id, overrides = {}) {
@@ -289,6 +300,9 @@ module.exports = {
     createApp,
     loadBoard,
     submitEvent,
+    find,
+    findAll,
+    columnFor,
     cardFor,
     actionButton,
     task,

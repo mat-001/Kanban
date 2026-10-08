@@ -20,11 +20,11 @@ test("nur die Spalten scrollen, die Fußzeile sitzt direkt darunter am unteren R
     await openBoard(page, tasks);
 
     const pageScrolls = await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight);
-    const columnScrolls = await column(page, 0).evaluate(el => el.scrollHeight > el.clientHeight);
+    const columnScrolls = await column(page, "todo").evaluate(el => el.scrollHeight > el.clientHeight);
     expect(pageScrolls).toBe(false);
     expect(columnScrolls).toBe(true);
 
-    const col = await column(page, 0).boundingBox();
+    const col = await column(page, "todo").boundingBox();
     const foot = await page.locator("#foot").boundingBox();
     const height = page.viewportSize().height;
     expect(foot.y - (col.y + col.height)).toBeLessThan(10);
@@ -55,7 +55,7 @@ test("sortiert nach Priorität", async ({ page }) => {
         makeTask(2, { t: "Hoch", p: "hoch" }),
         makeTask(3, { t: "Mittel", p: "mittel" })
     ]);
-    expect(await titlesIn(page, 0)).toEqual(["Hoch", "Mittel", "Niedrig"]);
+    expect(await titlesIn(page, "todo")).toEqual(["Hoch", "Mittel", "Niedrig"]);
 });
 
 test("zeigt überfällige Termine und verpassten Start", async ({ page }) => {
@@ -79,17 +79,17 @@ test("verschiebt Aufgaben mit den Pfeilen", async ({ page }) => {
     const forward = () => card(page, "Pfeiltest").getByRole("button", { name: /Eine Spalte weiter/ });
 
     await forward().click();
-    await expect(column(page, 1).locator(".card", { hasText: "Pfeiltest" })).toBeVisible();
+    await expect(column(page, "doing").locator(".card", { hasText: "Pfeiltest" })).toBeVisible();
     await forward().click();
-    await expect(column(page, 2).locator(".card", { hasText: "Pfeiltest" })).toContainText("Erledigt:");
+    await expect(column(page, "done").locator(".card", { hasText: "Pfeiltest" })).toContainText("Erledigt:");
 });
 
 test("verschiebt Aufgaben per Drag-and-drop", async ({ page }) => {
     await openBoard(page, [makeTask(1, { t: "Ziehtest" })]);
-    await card(page, "Ziehtest").dragTo(column(page, 1));
+    await card(page, "Ziehtest").dragTo(column(page, "doing"));
 
-    await expect(column(page, 1).locator(".card", { hasText: "Ziehtest" })).toBeVisible();
-    await expect(column(page, 0).locator(".card")).toHaveCount(0);
+    await expect(column(page, "doing").locator(".card", { hasText: "Ziehtest" })).toBeVisible();
+    await expect(column(page, "todo").locator(".card")).toHaveCount(0);
 });
 
 test("löscht eine Aufgabe und holt sie mit Rückgängig zurück", async ({ page }) => {

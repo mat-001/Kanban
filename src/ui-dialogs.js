@@ -19,6 +19,7 @@
         if (buttonText) {
             const button = document.createElement("button");
             button.type = "button";
+            button.className = "msg-action";
             button.textContent = buttonText;
             button.onclick = () => {
                 resetDate(dateId);
@@ -73,7 +74,7 @@
             const linkText = $("l").value.trim();
             const link = cleanLink(linkText);
             if (linkText && !link) {
-                showMessage("Der Link muss mit http:// https:// oder file:// beginnen.");
+                showMessage("Der Link muss mit http://, https:// oder file:// beginnen.");
                 $("l").focus();
                 return;
             }
@@ -88,7 +89,7 @@
                 due: dueInput.value,
                 e: clampEffort(effort),
                 ...(link && { l: link })
-            })
+            });
             titleInput.value = "";
             resetDate();
             $("e").value = "1";
@@ -128,7 +129,7 @@
             const linkText = $("el").value.trim();
             const link = cleanLink(linkText);
             if (linkText && !link) {
-                showMessage("Der Link muss mit http:// https:// oder file:// beginnen.", "", "emsg", "ed");
+                showMessage("Der Link muss mit http://, https:// oder file:// beginnen.", "", "emsg", "ed");
                 $("el").focus();
                 return;
             }

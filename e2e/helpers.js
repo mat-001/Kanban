@@ -17,10 +17,9 @@ async function openBoard(page, tasks) {
     }
 }
 
-const column = (page, index) => page.locator(".col").nth(index);
+const column = (page, key) => page.locator(`.col-${key}`);
 const card = (page, title) => page.locator(".card", { hasText: title });
-const titlesIn = (page, index) =>
-    column(page, index).locator(".card > div:first-child > div:first-child").allTextContents();
+const titlesIn = (page, key) => column(page, key).locator(".card .ttitle").allTextContents();
 
 async function addTask(page, title, link = "") {
     await page.fill("#t", title);

@@ -9,6 +9,9 @@ const {
     submitEvent,
     cardFor,
     actionButton,
+    find,
+    findAll,
+    columnFor,
     task,
     getAllFiles,
     projectRoot,
@@ -35,15 +38,15 @@ test("zeigt in der Zusammenfassung nur Ereignisse des gewählten Zeitraums", () 
     const summary = app.element("sum");
     assert.equal(app.element("stitle").textContent, "Die letzten 24 Stunden");
     assert.equal(app.element("sdlg").open, true);
-    assert.equal(summary.children[1].textContent, "Angelegt: 0 · In Arbeit gestartet: 0 · Erledigt: 1 · Gelöscht: 0");
-    assert.equal(summary.children[3].textContent, "Zu erledigen: 1 · In Arbeit: 1 · Mit verpasstem Start: 1");
-    assert.equal(summary.children[5].children.some(item => item.textContent.includes("Aktuelles Ereignis")), true);
-    assert.equal(summary.children[5].children.some(item => item.textContent.includes("Altes Ereignis")), false);
+    assert.equal(find(summary, "s-bilanz").textContent, "Angelegt: 0 · In Arbeit gestartet: 0 · Erledigt: 1 · Gelöscht: 0");
+    assert.equal(find(summary, "s-stand").textContent, "Zu erledigen: 1 · In Arbeit: 1 · Mit verpasstem Start: 1");
+    assert.equal(find(summary, "s-verlauf").children.some(item => item.textContent.includes("Aktuelles Ereignis")), true);
+    assert.equal(find(summary, "s-verlauf").children.some(item => item.textContent.includes("Altes Ereignis")), false);
 
     app.element("days").value = "30";
     app.element("days").onchange();
     assert.equal(app.element("stitle").textContent, "Die letzten 30 Tage");
-    assert.equal(summary.children[5].children.some(item => item.textContent.includes("Altes Ereignis")), true);
+    assert.equal(find(summary, "s-verlauf").children.some(item => item.textContent.includes("Altes Ereignis")), true);
 });
 
 test("legt Aufgaben über das Formular an und weist leere Titel zurück", () => {
@@ -72,7 +75,7 @@ test("legt Aufgaben über das Formular an und weist leere Titel zurück", () => 
     assert.equal(created.e, 16);
     assert.equal(title.value, "");
     assert.equal(effort.value, "1");
-    assert.equal(app.element("b").children.length, 3);
+    assert.equal(findAll(app.element("b"), "col").length, 3);
     assert.equal(cardFor(app, "Automatisierte Aufgabe") !== null, true);
 });
 
@@ -85,7 +88,7 @@ test("verhindert unvollständige Termine und kann das Datumsfeld zurücksetzen",
     assert.equal(app.Kanban.state.tasks.length, 0);
     assert.match(app.element("msg").textContent, /nur teilweise ausgefüllt/);
 
-    app.element("msg").children[0].onclick();
+    find(app.element("msg"), "msg-action").onclick();
     assert.equal(app.element("msg").hidden, true);
     assert.equal(app.element("d").validity.badInput, false);
     app.element("f").onsubmit(submitEvent());
@@ -129,7 +132,7 @@ test("verschiebt Aufgaben über Pfeile und Drag-and-drop und löscht mit Undo", 
 
     const card = cardFor(app, "Bewegen");
     card.ondragstart();
-    app.element("b").children[2].ondrop({ preventDefault() { } });
+    columnFor(app, "done").ondrop({ preventDefault() { } });
     assert.equal(storedItem.c, "done");
     assert.equal(app.Kanban.state.log.at(-1).k, "done");
 
@@ -198,7 +201,7 @@ test("shows summary when period is invalid and handles empty history", () => {
 
     assert.equal(app.element("days").value, 1);
     assert.equal(app.element("stitle").textContent, "Die letzten 24 Stunden");
-    assert.equal(app.element("sum").children.at(-1).textContent, "In den letzten 24 Stunden ist nichts passiert.");
+    assert.equal(find(app.element("sum"), "s-verlauf").textContent, "In den letzten 24 Stunden ist nichts passiert.");
 
     app.element("days").value = "365";
     app.element("days").onchange();
@@ -284,10 +287,10 @@ test("ignoriert ungültige Import-Einstellungen und rendert HTML-ähnliche Texte
     app.load("ui-dialogs.js");
     app.load("ui-board.js");
     app.load("app.js");
-    assert.equal(cardFor(app, unsafeText).children[0].children[0].textContent, unsafeText);
+    assert.equal(find(cardFor(app, unsafeText), "ttitle").textContent, unsafeText);
 
     app.element("sumbtn").onclick();
-    const history = app.element("sum").children.at(-1);
+    const history = find(app.element("sum"), "s-verlauf");
     assert.equal(history.children[0].textContent.includes(unsafeText), true);
     assert.equal(history.children[0].innerHTML || "", "");
 });

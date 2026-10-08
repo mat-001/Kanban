@@ -62,6 +62,7 @@
 
         const body = document.createElement("div");
         const title = document.createElement("div");
+        title.className = "ttitle";
         title.textContent = task.t;
         body.append(title, createTaskMetadata(task, column));
         if (task.l) {
@@ -97,7 +98,7 @@
 
     function createColumn([key, name, subtitle], index) {
         const column = document.createElement("div");
-        column.className = "col";
+        column.className = `col col-${key}`;
 
         const tasks = state.tasks
             .filter(task => task.c === key)

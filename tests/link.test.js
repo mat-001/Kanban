@@ -5,6 +5,7 @@ const {
     loadBoard,
     submitEvent,
     cardFor,
+    find,
     actionButton,
     task
 } = require("./test-helpers");
@@ -15,8 +16,8 @@ async function importText(app, text) {
     await input.onchange({ target: input });
 }
 
-// Der Link steht in der Karte als drittes Element im Textbereich (nach Titel und Metadaten).
-const linkOf = card => card.children[0].children[2];
+// Der Link wird über seinen Klassennamen gefunden, nicht über seine Stelle in der Karte.
+const linkOf = card => find(card, "tlink");
 
 test("cleanLink erlaubt nur http, https und file", () => {
     const { Kanban } = createApp();
@@ -200,7 +201,7 @@ test("zeigt den Link auf der Karte als sicheren Verweis an", () => {
     assert.match(web.rel, /noreferrer/);
 
     assert.equal(linkOf(cardFor(app, "Datei")).href, "file:///Users/name/a.pdf");
-    assert.equal(linkOf(cardFor(app, "Ohne")), undefined);
+    assert.equal(linkOf(cardFor(app, "Ohne")), null);
 });
 
 test("zeigt keinen Link an, wenn der gespeicherte Link unzulässig ist", () => {
@@ -208,5 +209,5 @@ test("zeigt keinen Link an, wenn der gespeicherte Link unzulässig ist", () => {
         storage: { kanban: JSON.stringify([task(50, { t: "Manipuliert", l: "javascript:alert(1)" })]) }
     }));
 
-    assert.equal(linkOf(cardFor(app, "Manipuliert")), undefined);
+    assert.equal(linkOf(cardFor(app, "Manipuliert")), null);
 });

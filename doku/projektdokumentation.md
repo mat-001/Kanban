@@ -96,6 +96,8 @@ Die Tests liegen in `tests/` und sind nach Themen aufgeteilt: `domain.test.js` (
 
 Die simulierte DOM-Umgebung ist kein vollständiger Browser. Tatsächliche Darstellung, Browserkompatibilität, HTML-Parsing, Tastaturfokus, native Dialogfunktionen und Screenreader-Verhalten benötigen ergänzende Prüfungen in realen Browsern.
 
+Die Tests finden Elemente über feste Klassennamen und nicht über ihre Position: `ttitle` (Kartentitel), `col-todo`/`col-doing`/`col-done` (Spalten), `mv` (Knöpfe einer Karte), `tlink` (Link), `msg-action` (Knopf in einer Meldung) sowie `s-bilanz`, `s-stand` und `s-verlauf` (Teile der Zusammenfassung). Diese Namen dürfen nur zusammen mit den Tests geändert werden. Neue Bereiche, die getestet werden sollen, bekommen ebenfalls einen eigenen Klassennamen.
+
 ## Browser-Tests einrichten (e2e)
 
 Die Browser-Tests im Ordner `e2e/` nutzen Playwright und prüfen die Seite in Chromium, Firefox und WebKit (Engine von Safari). Sie sind bewusst von `npm test` getrennt, weil sie deutlich langsamer sind.
@@ -126,6 +128,7 @@ npm run test:e2e
 - Playwright legt beim Lauf die Ordner `test-results/` und `playwright-report/` an. Beide stehen in `.gitignore`.
 - WebKit in Playwright ist nah an Safari, aber nicht identisch. Das Verhalten bei Dateilinks in Safari wird weiterhin von Hand geprüft.
 - Neue Browser-Tests gehören in `e2e/` und enden auf `.spec.js`. Dateien in `tests/` sind nur für `node --test` gedacht.
+- Gemeinsame Hilfsfunktionen der Browser-Tests stehen in `e2e/helpers.js`. Die Datei endet nicht auf `.spec.js` und wird deshalb nicht als Test ausgeführt.
 - `npx playwright test --project=chromium` testet nur in einem Browser und ist deutlich schneller.
 - `npx playwright test --ui` öffnet eine Oberfläche, in der du Tests einzeln startest und siehst, was der Browser tut.
 - Ein einzelner Test: `npx playwright test -g "Escape"`.
