@@ -515,3 +515,16 @@ body.app {
     font-size: .78rem;
     color: var(--ac)
 }
+
+@media (max-height: 600px) {
+    body.app {
+        height: auto;
+        min-height: 100dvh;
+        overflow: auto
+    }
+
+    .app .board {
+        flex: none;
+        height: 380px
+    }
+}
