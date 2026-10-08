@@ -62,7 +62,8 @@ test("cleanLink entfernt Leerzeichen am Rand, kodiert Leerzeichen in Dateipfaden
         Kanban.cleanLink("file:///C:/Meine Dokumente/Bericht 1.pdf"),
         "file:///C:/Meine%20Dokumente/Bericht%201.pdf"
     );
-    assert.equal(Kanban.cleanLink("https://example.com/" + "a".repeat(600)).length, 500);
+    assert.equal(Kanban.cleanLink("https://example.com/" + "a".repeat(480)).length, 500);
+    assert.equal(Kanban.cleanLink("https://example.com/" + "a".repeat(481)), "");
 });
 
 test("cleanTask behält gültige Links und lässt ungültige weg", () => {
@@ -72,7 +73,7 @@ test("cleanTask behält gültige Links und lässt ungültige weg", () => {
     assert.equal("l" in Kanban.cleanTask({ id: 2, t: "B", l: "javascript:alert(1)" }), false);
     assert.equal("l" in Kanban.cleanTask({ id: 3, t: "C", l: "" }), false);
     assert.equal("l" in Kanban.cleanTask({ id: 4, t: "D" }), false);
-    assert.equal("l" in Kanban.cleanTask({ id: 5, t: "E", l: { toString: () => "https://x.de" } }), true);
+    assert.equal("l" in Kanban.cleanTask({ id: 5, t: "E", l: { toString: () => "https://x.de" } }), false);
 });
 
 test("bereinigt Links beim Laden aus dem Speicher", () => {

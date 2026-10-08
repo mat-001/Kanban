@@ -74,7 +74,7 @@
             const linkText = $("l").value.trim();
             const link = cleanLink(linkText);
             if (linkText && !link) {
-                showMessage("Der Link muss mit http://, https:// oder file:// beginnen.");
+                showMessage("Der Link muss mit http://, https:// oder file:// beginnen und darf höchstens 500 Zeichen lang sein.");
                 $("l").focus();
                 return;
             }
@@ -129,7 +129,7 @@
             const linkText = $("el").value.trim();
             const link = cleanLink(linkText);
             if (linkText && !link) {
-                showMessage("Der Link muss mit http://, https:// oder file:// beginnen.", "", "emsg", "ed");
+                showMessage("Der Link muss mit http://, https:// oder file:// beginnen und darf höchstens 500 Zeichen lang sein.", "", "emsg", "ed");
                 $("el").focus();
                 return;
             }

@@ -2,6 +2,7 @@
   const DAY_MS = 864e5;
   const MAX_EFFORT = 1000; // Stunden pro Aufgabe
   const MAX_SETTING = 365; // Tage für Sicherheitspuffer und Alterung
+  const MAX_LINK = 500;
 
   const fmt = timestamp => new Date(timestamp).toLocaleString("de-DE", {
     day: "2-digit",
@@ -21,10 +22,11 @@
   const clampEffort = value => Math.min(MAX_EFFORT, Math.max(0, Number.isFinite(value) ? value : 0));
   const clampSetting = value => Math.min(MAX_SETTING, Math.max(0, Number.isFinite(value) ? Math.trunc(value) : 0));
   const cleanLink = text => {
-    let link = String(text || "").trim().slice(0, 500);
+    if (typeof text !== "string") return "";
+    let link = text.trim();
     // Leerzeichen in Dateipfaden (z. B. "Meine Dokumente") werden als %20 geschrieben
     if (/^file:\/\//i.test(link)) link = link.replace(/ /g, "%20");
-    return /^(https?|file):\/\/\S+$/i.test(link) ? link : "";
+    return link.length <= MAX_LINK && /^(https?|file):\/\/\S+$/i.test(link) ? link : "";
   };
 
   function lastStart(task, buffer) {
@@ -48,6 +50,6 @@
 
   Object.assign(Kanban, {
     fmt, fmtD, today, ymd, ageDays, lastStart, cleanLink,
-    MAX_EFFORT, MAX_SETTING, clampEffort, clampSetting
+    MAX_EFFORT, MAX_SETTING, MAX_LINK, clampEffort, clampSetting
   });
 })(window.Kanban ||= {});

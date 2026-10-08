@@ -58,7 +58,7 @@ Der Verlauf besteht aus Zeitstempel (`ts`), Ereignistyp (`k`) und gekürztem Tit
 
 - Erlaubt sind `http://`, `https://` und `file://`. Alles andere (etwa `javascript:` oder `data:`) wird abgelehnt.
 - Die Prüfung steckt in `cleanLink` (`src/dates.js`) und läuft an drei Stellen: beim Anlegen und Bearbeiten, beim Laden aus dem Speicher und beim Import. `cleanTask` ruft sie für Speicher und Import auf.
-- Leerzeichen in `file://`-Pfaden werden zu `%20`, Links werden auf 500 Zeichen gekürzt.
+- Leerzeichen in `file://`-Pfaden werden zu `%20`, Links über 500 Zeichen werden abgelehnt.
 - Auf der Karte wird der Link mit `href` und `textContent` gesetzt (nie über `innerHTML`) und mit `rel="noopener noreferrer"` geöffnet.
 - Dateilinks funktionieren nur, wenn die Seite direkt als Datei geöffnet wird. In Safari blockiert der normale Klick sie meist; Rechtsklick → „In neuem Tab öffnen“ funktioniert.
 
