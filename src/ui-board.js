@@ -69,6 +69,7 @@
             const link = document.createElement("a");
             link.href = task.l;
             link.textContent = "🔗 Link öffnen";
+            link.title = task.l;
             link.target = "_blank";
             link.rel = "noopener noreferrer";
             link.className = "tlink";

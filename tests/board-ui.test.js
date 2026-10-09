@@ -251,7 +251,7 @@ test("begrenzt Sicherheitspuffer und Alterung in den Einstellungen auf 365 Tage"
     assert.equal(app.storedValues.get("kanban_age"), "365");
 });
 
-test("zeigte für Daten einer neueren Version einen Hinweis, der nicht verschwindet", () => {
+test("zeigt für Daten einer neueren Version einen Hinweis, der nicht verschwindet", () => {
     const app = loadBoard(createApp({ storage: { kanban: JSON.stringify([task(1)]), kanban_version: "2" } }));
     const notice = () => app.element("notice");
     assert.equal(notice().hidden, false);
