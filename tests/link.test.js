@@ -89,7 +89,6 @@ test("bereinigt Links beim Laden aus dem Speicher", () => {
 
 test("übernimmt beim Import nur gültige Links", async () => {
     const app = createApp();
-    app.load("backup.js");
     app.Kanban.initBackup(() => { });
 
     await importText(app, JSON.stringify({
@@ -109,14 +108,12 @@ test("übernimmt beim Import nur gültige Links", async () => {
 
 test("exportiert Links und importiert sie unverändert in ein frisches Profil", async () => {
     const source = createApp();
-    source.load("backup.js");
     source.Kanban.state.tasks = [task(20, { t: "Mit Link", l: "https://example.com/x" })];
     source.Kanban.initBackup(() => { });
     await source.element("exp").onclick();
     const exported = await source.downloads[0].blob.text();
 
     const target = createApp();
-    target.load("backup.js");
     target.Kanban.initBackup(() => { });
     await importText(target, exported);
 

@@ -1,33 +1,58 @@
-(function (Kanban) {
-  const { RANK, TOK, clampEffort, clampSetting, cleanLink, isRealDate } = Kanban;
+import {
+  DATA_VERSION, LOG_DAYS, LOG_KINDS, LOG_MAX, RANK, RECOVERY_DAYS, TOK
+} from "./constants.js";
+import { clampEffort, clampSetting, cleanLink, isRealDate } from "./dates.js";
 
-  const LOG_MAX = 1000;
-  const LOG_DAYS = 30;
-  const RECOVERY_DAYS = 30;
-  const LOG_KINDS = ["add", "start", "done", "back", "del"];
+// Umwandlungen für alte Datenformate: MIGRATIONS[alteVersion] wandelt die Aufgabenliste in die nächste Version um.
+// Daten einer NEUEREN Version werden nur gelesen, nie überschrieben.
+export const MIGRATIONS = {};
 
-  // Version des Datenformats im Browser-Speicher (Schlüssel "kanban_version"). Ändert sich das Format,
-  // DATA_VERSION um 1 erhöhen und unter MIGRATIONS[alteVersion] eine Funktion ergänzen, die die Aufgabenliste
-  // von dieser Version in die nächste umwandelt. Daten einer NEUEREN Version werden nur gelesen, nie überschrieben.
-  const DATA_VERSION = 1;
-  const MIGRATIONS = {};
-
-  function migrate(tasks, from, target = DATA_VERSION, steps = MIGRATIONS) {
-    for (let version = from; version < target; version++) {
-      if (typeof steps[version] !== "function") {
-        throw new Error(`Für die Umstellung von Datenversion ${version} fehlt eine Migration.`);
-      }
-      tasks = steps[version](tasks);
+export function migrate(tasks, from, target = DATA_VERSION, steps = MIGRATIONS) {
+  for (let version = from; version < target; version++) {
+    if (typeof steps[version] !== "function") {
+      throw new Error(`Für die Umstellung von Datenversion ${version} fehlt eine Migration.`);
     }
-    return tasks;
+    tasks = steps[version](tasks);
   }
-  const LBL = {
-    add: "Angelegt",
-    start: "In Arbeit gestartet",
-    done: "Erledigt",
-    back: "Zurückgeschoben",
-    del: "Gelöscht"
+  return tasks;
+}
+
+const isNumber = value => typeof value === "number" && Number.isFinite(value);
+
+export function cleanTask(value) {
+  if (!value || typeof value.t !== "string" || !value.t.trim()) return null;
+
+  const created = isNumber(value.created) ? value.created
+    : isNumber(value.id) ? value.id
+      : Date.now();
+  const task = {
+    id: isNumber(value.id) ? value.id : created,
+    t: value.t.trim().slice(0, 300),
+    c: TOK.includes(value.c) ? value.c : "todo",
+    p: typeof value.p === "string" && Object.hasOwn(RANK, value.p) ? value.p : "mittel",
+    created,
+    due: isRealDate(value.due) ? value.due : "",
+    e: clampEffort(isNumber(value.e) ? value.e : 0)
   };
+  const link = cleanLink(value.l);
+  if (link) task.l = link;
+
+  if (task.c === "done" && isNumber(value.doneAt)) task.doneAt = value.doneAt;
+  if (isNumber(value.since)) task.since = value.since;
+  return task;
+}
+
+// Standard-Speicher. Der Zugriff auf window.localStorage passiert erst beim Aufruf, damit ein blockierter
+// Speicher (z. B. im privaten Fenster) wie bisher von den try/catch-Blöcken abgefangen wird.
+export const browserStorage = {
+  getItem: key => window.localStorage.getItem(key),
+  setItem: (key, value) => window.localStorage.setItem(key, value),
+  removeItem: key => window.localStorage.removeItem(key)
+};
+
+// Erzeugt den Datenspeicher. Jeder Aufruf liefert eine eigene, unabhängige Instanz.
+// `storage` kann ersetzt werden (z. B. durch ein Objekt mit getItem/setItem/removeItem in Tests).
+export function createStore({ storage = browserStorage } = {}) {
   const state = {
     tasks: [],
     log: null,
@@ -41,42 +66,26 @@
     rawTasks: null, // nur bei readOnly: unveränderte Originaldaten für den Export
     rawLog: null
   };
-  const isNumber = value => typeof value === "number" && Number.isFinite(value);
 
-  function cleanTask(value) {
-    if (!value || typeof value.t !== "string" || !value.t.trim()) return null;
-
-    const created = isNumber(value.created) ? value.created
-      : isNumber(value.id) ? value.id
-        : Date.now();
-    const task = {
-      id: isNumber(value.id) ? value.id : created,
-      t: value.t.trim().slice(0, 300),
-      c: TOK.includes(value.c) ? value.c : "todo",
-      p: typeof value.p === "string" && Object.hasOwn(RANK, value.p) ? value.p : "mittel",
-      created,
-      due: isRealDate(value.due) ? value.due : "",
-      e: clampEffort(isNumber(value.e) ? value.e : 0)
-    };
-    const link = cleanLink(value.l);
-    if (link) task.l = link;
-
-    if (task.c === "done" && isNumber(value.doneAt)) task.doneAt = value.doneAt;
-    if (isNumber(value.since)) task.since = value.since;
-    return task;
+  // Kleine Ereignisliste statt document.dispatchEvent: "saved" und "failed" melden das Ergebnis von save().
+  const listeners = { saved: new Set(), failed: new Set() };
+  const emit = name => listeners[name].forEach(listener => listener());
+  function on(name, listener) {
+    listeners[name].add(listener);
+    return () => listeners[name].delete(listener);
   }
 
   let raw = null;
   let storageReadFailed = false;
   try {
-    raw = localStorage.getItem("kanban");
+    raw = storage.getItem("kanban");
   } catch (error) {
     storageReadFailed = true;
     state.loadProblem = "Gespeicherte Aufgaben konnten nicht gelesen werden.";
   }
 
   try {
-    const versionText = localStorage.getItem("kanban_version");
+    const versionText = storage.getItem("kanban_version");
     const version = Number(versionText);
     if (versionText !== null && Number.isInteger(version) && version >= 1) state.storedVersion = version;
   } catch (error) {
@@ -127,10 +136,10 @@
     if (state.loadProblem && !state.readOnly) {
       state.recoveryCopyAttempted = true;
       try {
-        localStorage.setItem("kanban_defekt", raw);
+        storage.setItem("kanban_defekt", raw);
         state.recoveryCopySaved = true;
         try {
-          localStorage.setItem("kanban_defekt_ts", String(Date.now()));
+          storage.setItem("kanban_defekt_ts", String(Date.now()));
         } catch (error) {
           // Ohne Zeitstempel bekommt die Kopie beim nächsten Start einen.
         }
@@ -159,13 +168,13 @@
   function cleanupRecoveryCopy() {
     if (state.readOnly || state.loadProblem) return;
     try {
-      if (localStorage.getItem("kanban_defekt") === null) return;
-      const savedAt = Number(localStorage.getItem("kanban_defekt_ts"));
+      if (storage.getItem("kanban_defekt") === null) return;
+      const savedAt = Number(storage.getItem("kanban_defekt_ts"));
       if (!Number.isFinite(savedAt) || savedAt <= 0) {
-        localStorage.setItem("kanban_defekt_ts", String(Date.now()));
+        storage.setItem("kanban_defekt_ts", String(Date.now()));
       } else if (Date.now() - savedAt > RECOVERY_DAYS * 864e5) {
-        localStorage.removeItem("kanban_defekt");
-        localStorage.removeItem("kanban_defekt_ts");
+        storage.removeItem("kanban_defekt");
+        storage.removeItem("kanban_defekt_ts");
       }
     } catch (error) {
       // Aufräumen ist nicht kritisch.
@@ -175,7 +184,7 @@
 
   function readSetting(key, fallback) {
     try {
-      const value = localStorage.getItem(key);
+      const value = storage.getItem(key);
       return value === null ? fallback : clampSetting(parseInt(value, 10) || 0);
     } catch (error) {
       return fallback;
@@ -188,12 +197,12 @@
   function save() {
     if (state.readOnly) return false; // Daten einer neueren Version nie überschreiben
     try {
-      localStorage.setItem("kanban_version", String(DATA_VERSION));
-      localStorage.setItem("kanban", JSON.stringify(state.tasks));
-      document.dispatchEvent(new CustomEvent("kanban-storage-saved"));
+      storage.setItem("kanban_version", String(DATA_VERSION));
+      storage.setItem("kanban", JSON.stringify(state.tasks));
+      emit("saved");
       return true;
     } catch (error) {
-      document.dispatchEvent(new CustomEvent("kanban-storage-failed"));
+      emit("failed");
       return false;
     }
   }
@@ -202,7 +211,7 @@
     if (state.readOnly) return false;
     const storageKey = key === "buffer" ? "kanban_buf" : "kanban_age";
     try {
-      localStorage.setItem(storageKey, value);
+      storage.setItem(storageKey, value);
       return true;
     } catch (error) {
       return false;
@@ -210,7 +219,7 @@
   }
 
   try {
-    state.log = JSON.parse(localStorage.getItem("kanban_log"));
+    state.log = JSON.parse(storage.getItem("kanban_log"));
   } catch (error) {
     state.log = null;
   }
@@ -237,7 +246,7 @@
     let entries = state.log;
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        localStorage.setItem("kanban_log", JSON.stringify(entries));
+        storage.setItem("kanban_log", JSON.stringify(entries));
         return true;
       } catch (error) {
         entries = entries.slice(Math.ceil(entries.length / 2));
@@ -268,21 +277,5 @@
     return entry;
   }
 
-  Object.assign(Kanban, {
-    LOG_MAX,
-    LOG_DAYS,
-    RECOVERY_DAYS,
-    LOG_KINDS,
-    LBL,
-    DATA_VERSION,
-    MIGRATIONS,
-    migrate,
-    state,
-    cleanTask,
-    save,
-    saveSetting,
-    pruneLog,
-    saveLog,
-    addLog
-  });
-})(window.Kanban ||= {});
+  return { state, on, save, saveSetting, saveLog, pruneLog, addLog };
+}

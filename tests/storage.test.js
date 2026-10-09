@@ -34,7 +34,7 @@ test("speichert Aufgaben und signalisiert fehlgeschlagene Speicherung", () => {
     Kanban.state.tasks.push(task(1));
 
     assert.equal(Kanban.save(), false);
-    assert.deepEqual(events, ["kanban-storage-failed"]);
+    assert.deepEqual(events, ["failed"]);
 });
 
 test("begrenzt Aufwand und Einstellungen beim Laden aus dem Speicher", () => {
@@ -150,7 +150,7 @@ test("liest Daten einer neueren Version, überschreibt aber nichts", () => {
     assert.equal(storedValues.get("kanban"), raw);
     assert.equal(storedValues.get("kanban_version"), "2");
     assert.equal(storedValues.get("kanban_buf"), "4");
-    assert.equal(events.includes("kanban-storage-failed"), false);
+    assert.equal(events.includes("failed"), false);
 });
 
 test("wendet Migrationen der Reihe nach an und meldet fehlende Schritte", () => {

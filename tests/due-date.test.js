@@ -68,7 +68,6 @@ test("bereinigt unmögliche Zieltermine beim Laden aus dem Speicher", () => {
 
 test("bereinigt unmögliche Zieltermine beim Import", async () => {
     const app = createApp();
-    app.load("backup.js");
     app.Kanban.initBackup(() => { });
 
     await importText(app, JSON.stringify({

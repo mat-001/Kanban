@@ -21,7 +21,6 @@ const {
 
 test("zeigt in der Zusammenfassung nur Ereignisse des gewählten Zeitraums", () => {
     const app = createApp();
-    app.load("summary.js");
     app.Kanban.state.log = [
         { ts: FIXED_NOW - 2 * DAY_MS, k: "add", t: "Altes Ereignis" },
         { ts: FIXED_NOW - 1000, k: "done", t: "Aktuelles Ereignis" }
@@ -191,7 +190,6 @@ test("stellt gespeicherte Aufgaben nach einer simulierten Browser-Neuladung wied
 
 test("shows summary when period is invalid and handles empty history", () => {
     const app = createApp();
-    app.load("summary.js");
     app.Kanban.state.log = [];
     app.Kanban.state.tasks = [];
     app.Kanban.initSummary();
@@ -267,8 +265,6 @@ test("zeigt für Daten einer neueren Version einen Hinweis, der nicht verschwind
 
 test("ignoriert ungültige Import-Einstellungen und rendert HTML-ähnliche Texte als Text", async () => {
     const app = loadBoard(createApp());
-    app.load("backup.js");
-    app.Kanban.initBackup(() => { });
     const unsafeText = '<img src=x onerror="alert(1)">';
     const input = app.element("impfile");
     input.files = [{
@@ -283,10 +279,6 @@ test("ignoriert ungültige Import-Einstellungen und rendert HTML-ähnliche Texte
 
     assert.equal(app.Kanban.state.buffer, 1);
     assert.equal(app.Kanban.state.step, 7);
-    app.load("ui-notifications.js");
-    app.load("ui-dialogs.js");
-    app.load("ui-board.js");
-    app.load("app.js");
     assert.equal(find(cardFor(app, unsafeText), "ttitle").textContent, unsafeText);
 
     app.element("sumbtn").onclick();

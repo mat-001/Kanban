@@ -2,41 +2,11 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
+const { bundle } = require("../bundle.cjs");
 
 const projectRoot = path.resolve(__dirname, "..");
 const DAY_MS = 864e5;
 const FIXED_NOW = new Date(2026, 9, 4, 12).getTime();
-
-function findScriptPath(filename) {
-    const directPath = path.join(projectRoot, "src", filename);
-    if (fs.existsSync(directPath) && fs.statSync(directPath).isFile()) {
-        return directPath;
-    }
-
-    const rootDirectPath = path.join(projectRoot, filename);
-    if (fs.existsSync(rootDirectPath) && fs.statSync(rootDirectPath).isFile()) {
-        return rootDirectPath;
-    }
-
-    function searchDir(dir) {
-        if (!fs.existsSync(dir)) return null;
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        for (const entry of entries) {
-            const fullPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) {
-                const found = searchDir(fullPath);
-                if (found) return found;
-            } else if (entry.isFile()) {
-                if (entry.name === filename || fullPath.endsWith(path.sep + filename) || fullPath.endsWith("/" + filename)) {
-                    return fullPath;
-                }
-            }
-        }
-        return null;
-    }
-
-    return searchDir(path.join(projectRoot, "src")) || searchDir(projectRoot);
-}
 
 function getAllFiles(dir) {
     if (!fs.existsSync(dir)) return [];
@@ -64,7 +34,6 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
     const revokedUrls = [];
     const events = [];
     const elements = new Map();
-    const listeners = new Map();
     const timers = new Map();
     let nextTimerId = 1;
     const NativeDate = Date;
@@ -150,14 +119,6 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
     const document = {
         body: { appendChild() { } },
         createElement(tagName) { return makeElement(tagName); },
-        dispatchEvent(event) {
-            events.push(event.type);
-            (listeners.get(event.type) || []).forEach(listener => listener(event));
-        },
-        addEventListener(type, listener) {
-            if (!listeners.has(type)) listeners.set(type, []);
-            listeners.get(type).push(listener);
-        },
         getElementById: element
     };
 
@@ -181,9 +142,6 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
             },
             revokeObjectURL(url) { revokedUrls.push(url); }
         },
-        CustomEvent: class CustomEvent {
-            constructor(type) { this.type = type; }
-        },
         document,
         setTimeout: timersApi.setTimeout,
         clearTimeout: timersApi.clearTimeout,
@@ -203,24 +161,48 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
     };
     sandbox.window = sandbox;
 
-    const load = filename => {
-        const filePath = findScriptPath(filename);
-        if (!filePath) throw new Error(`Skriptdatei nicht gefunden: ${filename}`);
-        let source = fs.readFileSync(filePath, "utf8");
-        const baseName = path.basename(filePath);
-        if (patch[filename]) source = patch[filename](source);
-        else if (patch[baseName]) source = patch[baseName](source);
-        vm.runInNewContext(source, sandbox, { filename: baseName });
+    // Die Module aus src/ werden mit demselben Bündler wie im Build zusammengesetzt (aber ohne Autostart)
+    // und in der Sandbox ausgeführt. Ergebnis ist die require-Funktion für die einzelnen Module.
+    const { code } = bundle({
+        srcDir: path.join(projectRoot, "src"),
+        entry: "main.js",
+        autorun: false,
+        transform: (name, source) => (patch[name] ? patch[name](source) : source)
+    });
+    const req = vm.runInNewContext(code, sandbox, { filename: "kanban-test-bundle.js" });
+
+    // Eigener Speicher und eigene Aktionen pro Test: es gibt keinen globalen Zustand mehr.
+    const store = req("storage.js").createStore();
+    const actions = req("task.js").createTaskActions(store);
+    store.on("saved", () => events.push("saved"));
+    store.on("failed", () => events.push("failed"));
+
+    // Kurzschreibweise für die Tests: alle Funktionen und Konstanten an einer Stelle.
+    const Kanban = {
+        ...req("constants.js"),
+        ...req("dates.js"),
+        ...req("sort.js"),
+        cleanTask: req("storage.js").cleanTask,
+        migrate: req("storage.js").migrate,
+        state: store.state,
+        save: store.save,
+        saveLog: store.saveLog,
+        saveSetting: store.saveSetting,
+        pruneLog: store.pruneLog,
+        addLog: store.addLog,
+        ...actions,
+        initBackup: onChange => req("backup.js").initBackup({ store, onChange }),
+        initSummary: () => req("summary.js").initSummary({ store })
     };
 
-    ["dates.js", "sort.js", "storage.js", "task.js"].forEach(load);
-
     return {
-        Kanban: sandbox.Kanban,
+        Kanban,
+        store,
+        actions,
+        req,
         document,
         element,
         events,
-        load,
         sandbox,
         timers,
         storedValues,
@@ -231,12 +213,7 @@ function createApp({ storage = {}, now = FIXED_NOW, failWrites = [], maxValueLen
 }
 
 function loadBoard(app) {
-    app.load("backup.js");
-    app.load("summary.js");
-    app.load("ui-notifications.js");
-    app.load("ui-dialogs.js");
-    app.load("ui-board.js");
-    app.load("app.js");
+    app.req("app.js").startApp({ store: app.store, actions: app.actions });
     return app;
 }
 
@@ -284,10 +261,8 @@ function task(id, overrides = {}) {
 
 function withVersion(version, migrations = "{}") {
     return {
-        "storage.js": source => source.replace(
-            /const DATA_VERSION = \d+;\s*const MIGRATIONS = \{[^}]*\};/,
-            `const DATA_VERSION = ${version};\n  const MIGRATIONS = ${migrations};`
-        )
+        "constants.js": source => source.replace(/export const DATA_VERSION = \d+;/, `export const DATA_VERSION = ${version};`),
+        "storage.js": source => source.replace(/export const MIGRATIONS = \{\};/, `export const MIGRATIONS = ${migrations};`)
     };
 }
 
@@ -295,7 +270,6 @@ module.exports = {
     projectRoot,
     DAY_MS,
     FIXED_NOW,
-    findScriptPath,
     getAllFiles,
     createApp,
     loadBoard,

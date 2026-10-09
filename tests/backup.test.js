@@ -10,7 +10,6 @@ async function importText(app, text) {
 
 test("exportiert Aufgaben, Protokoll und Einstellungen in einer Sicherung", async () => {
     const app = createApp();
-    app.load("backup.js");
     app.Kanban.state.tasks.push(task(20));
     app.Kanban.state.buffer = 3;
     app.Kanban.state.step = 9;
@@ -33,7 +32,6 @@ test("exportiert Aufgaben, Protokoll und Einstellungen in einer Sicherung", asyn
 
 test("importiert neue Aufgaben, dedupliziert, bereinigt Verlauf und übernimmt Einstellungen", async () => {
     const app = createApp();
-    app.load("backup.js");
     const existing = task(30);
     app.Kanban.state.tasks.push(existing);
     let renders = 0;
@@ -75,7 +73,6 @@ test("importiert neue Aufgaben, dedupliziert, bereinigt Verlauf und übernimmt E
 
 test("weisst fehlerhafte Importdateien ohne Änderung der Daten zurück", async () => {
     const app = createApp();
-    app.load("backup.js");
     const item = task(40);
     app.Kanban.state.tasks.push(item);
     app.Kanban.initBackup(() => assert.fail("Ungültiger Import darf nicht rendern"));
@@ -101,7 +98,6 @@ test("weisst fehlerhafte Importdateien ohne Änderung der Daten zurück", async 
 
 test("begrenzt den Aufwand importierter Aufgaben", async () => {
     const app = createApp();
-    app.load("backup.js");
     app.Kanban.initBackup(() => { });
     const input = app.element("impfile");
     input.files = [{ size: 100, text: async () => JSON.stringify({ tasks: [task(95, { e: 1e300 })] }) }];
@@ -113,7 +109,6 @@ test("begrenzt den Aufwand importierter Aufgaben", async () => {
 
 test("weist kollidierenden Import-IDs neue freie IDs zu", async () => {
     const app = createApp();
-    app.load("backup.js");
     app.Kanban.state.tasks = [task(70, { t: "Schon da" }), task(71, { t: "ID belegt" })];
     app.Kanban.initBackup(() => { });
     const file = {
@@ -134,7 +129,6 @@ test("weist kollidierenden Import-IDs neue freie IDs zu", async () => {
 
 test("überspringt denselben Import bei wiederholtem Import ohne ID-Kollision", async () => {
     const app = createApp();
-    app.load("backup.js");
     app.Kanban.initBackup(() => { });
     const input = app.element("impfile");
     input.files = [{
@@ -151,7 +145,6 @@ test("überspringt denselben Import bei wiederholtem Import ohne ID-Kollision", 
 
 test("importiert eine Sicherung in ein frisches Profil und erhält Aufgaben, Verlauf und Einstellungen", async () => {
     const source = createApp();
-    source.load("backup.js");
     source.Kanban.state.tasks = [task(80, { t: "Roundtrip", due: "2026-10-15" })];
     source.Kanban.state.log = [{ ts: FIXED_NOW, k: "add", t: "Roundtrip" }];
     source.Kanban.state.buffer = 5;
@@ -161,7 +154,6 @@ test("importiert eine Sicherung in ein frisches Profil und erhält Aufgaben, Ver
     const exported = [await source.downloads[0].blob.text()];
 
     const target = createApp();
-    target.load("backup.js");
     target.Kanban.initBackup(() => { });
     const input = target.element("impfile");
     input.files = [{ size: exported[0].length, text: async () => exported[0] }];
@@ -198,7 +190,6 @@ test("verweigert den Import bei Daten einer neueren Version", async () => {
 
 test("exportiert mit der aktuellen Datenversion", async () => {
     const app = createApp();
-    app.load("backup.js");
     app.Kanban.initBackup(() => { });
     await app.element("exp").onclick();
     assert.equal(JSON.parse(await app.downloads[0].blob.text()).version, app.Kanban.DATA_VERSION);
@@ -206,7 +197,6 @@ test("exportiert mit der aktuellen Datenversion", async () => {
 
 test("prüft beim Import die Versionsnummer der Sicherung", async () => {
     const app = createApp();
-    app.load("backup.js");
     app.Kanban.initBackup(() => { });
     const before = app.Kanban.state.tasks.length;
 
@@ -232,7 +222,6 @@ test("prüft beim Import die Versionsnummer der Sicherung", async () => {
 
 test("startet den Download über einen kurzlebigen Blob-Link und gibt ihn danach wieder frei", async () => {
     const app = createApp();
-    app.load("backup.js");
     app.Kanban.initBackup(() => { });
     app.element("exp").onclick();
 
@@ -248,7 +237,6 @@ test("startet den Download über einen kurzlebigen Blob-Link und gibt ihn danach
 
 test("meldet verständlich, wenn der Download nicht gestartet werden kann", () => {
     const app = createApp();
-    app.load("backup.js");
     app.Kanban.initBackup(() => { });
     app.sandbox.URL.createObjectURL = () => { throw new Error("nicht verfügbar"); };
 
@@ -261,7 +249,6 @@ test("meldet verständlich, wenn der Download nicht gestartet werden kann", () =
 
 test("nennt Einstellungen in der Importmeldung nur, wenn die Datei gültige enthielt", async () => {
     const app = createApp();
-    app.load("backup.js");
     app.Kanban.initBackup(() => { });
     const message = () => app.element("dmsg").textContent;
 
@@ -284,7 +271,6 @@ test("nennt Einstellungen in der Importmeldung nur, wenn die Datei gültige enth
 
 test("warnt, wenn eine importierte Einstellung nicht dauerhaft gespeichert werden kann", async () => {
     const app = createApp({ failWrites: ["kanban_buf"] });
-    app.load("backup.js");
     app.Kanban.initBackup(() => { });
 
     await importText(app, JSON.stringify({ tasks: [task(110)], settings: { buffer: 4, step: 3 } }));

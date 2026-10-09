@@ -1,5 +1,6 @@
-(function (Kanban) {
-  const { addLog, save, saveLog, state } = Kanban;
+// Aufgaben-Aktionen. Der Datenspeicher wird übergeben, nicht global gesucht.
+export function createTaskActions(store) {
+  const { addLog, save, saveLog, state } = store;
 
   function addTask(task) {
     state.tasks.push(task);
@@ -54,5 +55,5 @@
     return true;
   }
 
-  Object.assign(Kanban, { addTask, updateTask, moveTask, dismissUndo, deleteTask, undoDelete });
-})(window.Kanban ||= {});
+  return { addTask, updateTask, moveTask, dismissUndo, deleteTask, undoDelete };
+}
