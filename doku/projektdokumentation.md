@@ -6,9 +6,10 @@ Das Kanban-Board ist eine statische Webanwendung zur persönlichen Aufgabenverwa
 
 ## Einstiegspunkte und Module
 
-- `index.html` enthält das Board, Formulare, Dialoge und lädt die JavaScript-Dateien in ihrer benötigten Reihenfolge.
+- `index.html` enthält das Board, Formulare und Dialoge und verweist im Projektverzeichnis auf das gebündelte Skript `dist/kanban.js`.
 - `help.html` enthält die Bedienhilfe.
 - `style.css` definiert Layout, responsive Spalten, Dialoge und helle/dunkle Farbschemata.
+- `src/main.js` ist der Einstiegspunkt der JavaScript-Module. Der Build bündelt die benötigten Module in `kanban.js`.
 - `src/dates.js` berechnet Datumsdarstellungen, Wartezeit und spätesten Start und enthält kleine Prüffunktionen (`clampEffort`, `clampSetting`, `cleanLink`).
 - `src/sort.js` definiert Board-Spalten, Prioritätsrang und Sortierung.
 - `src/storage.js` initialisiert Zustand, bereinigt lokale Daten und verwaltet Speicherung sowie Verlaufsgrenzen.
@@ -21,7 +22,7 @@ Das Kanban-Board ist eine statische Webanwendung zur persönlichen Aufgabenverwa
 - `src/ui-board.js` rendert Spalten und Karten.
 - `src/app.js` startet alle Module.
 
-Die Module hängen ihre Funktionen an `window.Kanban`. Die Script-Reihenfolge in `index.html` ist relevant: Datums- und Sortierfunktionen werden vor Speicherung, Aufgabenaktionen und Oberfläche geladen.
+Die Module verwenden ES-Modul-Importe. Der Build löst die Abhängigkeiten ab `src/main.js` auf und erzeugt ein einzelnes klassisches Browser-Skript. In der ausgelieferten `dist/index.html` verweist der Skriptpfad auf `kanban.js`.
 
 ## Datenmodell
 
@@ -135,7 +136,7 @@ npm run test:e2e
 
 ## Website bereitstellen
 
-`npm run build` kopiert nur `index.html`, `help.html`, `style.css`, `Kanban.png` und `src/` in den Ordner `dist/`. Nur dieser Ordner wird veröffentlicht. Tests, `package.json` und `node_modules` bleiben draußen. Dateilinks funktionieren auf einer veröffentlichten Seite nicht, und die Aufgaben liegen im Browserspeicher der jeweiligen Adresse (Export und Import zum Umziehen).
+`npm run build` erstellt den vollständigen Produktionsordner `dist/`. Er enthält nur `index.html`, `help.html`, `style.css`, `Kanban.png` und das gebündelte `kanban.js`; nicht benötigte Dateien aus einem vorherigen Build werden entfernt. Nur dieser Ordner wird veröffentlicht. Tests, Quellmodule, `package.json` und `node_modules` bleiben draußen. Der Build benötigt Node.js 20 oder neuer und keine zusätzlichen npm-Pakete. Dateilinks funktionieren auf einer veröffentlichten Seite nicht, und die Aufgaben liegen im Browserspeicher der jeweiligen Adresse (Export und Import zum Umziehen).
 
 ## Bekannte Grenzen
 

@@ -1,12 +1,12 @@
 # Kanban-Board
 
-Ein leichtgewichtiges Kanban-Board für die persönliche Aufgabenverwaltung. Die Anwendung besteht aus statischen HTML-, CSS- und JavaScript-Dateien, läuft vollständig im Browser und benötigt für den Betrieb weder einen Server noch einen Build-Schritt.
+Ein leichtgewichtiges Kanban-Board für die persönliche Aufgabenverwaltung. Die Anwendung läuft vollständig im Browser; für die Veröffentlichung erstellt der Build einen eigenständigen Ordner mit den benötigten Dateien.
 
 ## Starten
 
-`index.html` direkt im Browser öffnen. Alternativ kann das Projekt über einen beliebigen lokalen statischen HTTP-Server aufgerufen werden.
+Vor dem ersten Öffnen oder Veröffentlichen `npm run build` ausführen. Das erzeugt `dist/`; dieser Ordner kann direkt per `file://` geöffnet oder über einen beliebigen statischen HTTP-Server veröffentlicht werden.
 
-Die Anwendung benötigt keine Installation. Für die Tests wird **Node.js 20 oder neuer** benötigt; es müssen keine zusätzlichen npm-Pakete installiert werden.
+Der Build benötigt **Node.js 20 oder neuer**, aber keine Installation zusätzlicher npm-Pakete. Für die Tests wird ebenfalls Node.js benötigt.
 
 ## Funktionen
 
@@ -50,11 +50,14 @@ Die Tests führen die produktiven Skripte in einer simulierten Browserumgebung a
 ├── README.md
 ├── Kanban.png
 ├── package.json
+├── build.cjs
+├── bundle.cjs
 ├── index.html
 ├── help.html
 ├── style.css
 ├── src/
 │   ├── app.js
+│   ├── main.js
 │   ├── backup.js
 │   ├── dates.js
 │   ├── summary.js
@@ -76,3 +79,5 @@ Die Tests führen die produktiven Skripte in einer simulierten Browserumgebung a
     ├── projektdokumentation.md
     └── testplan.md
 ```
+
+`npm run build` erzeugt `dist/` mit `index.html`, `help.html`, `style.css`, `Kanban.png` und dem gebündelten `kanban.js`. Für die Produktivsetzung wird nur dieser Ordner benötigt; Quellmodule, Tests und Entwicklungsdateien sind nicht enthalten.
