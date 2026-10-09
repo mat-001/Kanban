@@ -50,6 +50,34 @@ export function initDialogs({ store, actions, notifications, onChange }) {
   $("e").max = $("ee").max = MAX_EFFORT;
   $("buf").max = $("age").max = MAX_SETTING;
 
+  // Enter speichert wie bisher, Umschalt+Enter fügt im Aufgabentext eine neue Zeile ein.
+  [["t", "f"], ["et", "ef"]].forEach(([fieldId, formId]) => {
+    $(fieldId).onkeydown = event => {
+      if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+      event.preventDefault();
+      $(formId).requestSubmit();
+    };
+  });
+
+  // Dialog "Neue Aufgabe": wird bei jedem Öffnen geleert
+  const newDialog = $("ndlg");
+  function openNew() {
+    $("t").value = "";
+    $("p").value = "mittel";
+    $("e").value = "1";
+    resetDate();
+    $("l").value = "";
+    $("msg").hidden = true;
+    newDialog.showModal();
+    $("t").focus();
+  }
+
+  $("add").onclick = openNew;
+  $("ncancel").onclick = () => newDialog.close();
+  newDialog.onclick = event => {
+    if (event.target === newDialog) newDialog.close();
+  };
+
   // Erstellen-Formular
   $("f").onsubmit = event => {
     event.preventDefault();
@@ -93,11 +121,8 @@ export function initDialogs({ store, actions, notifications, onChange }) {
       e: clampEffort(effort),
       ...(link && { l: link })
     });
-    titleInput.value = "";
-    resetDate();
-    $("e").value = "1";
-    $("l").value = "";
     onChange();
+    newDialog.close();
   };
 
   // Bearbeiten-Formular
