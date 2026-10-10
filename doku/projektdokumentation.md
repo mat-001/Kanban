@@ -121,7 +121,7 @@ Die Tests finden Elemente über feste Klassennamen und nicht über ihre Position
 
 Die Browser-Tests im Ordner `e2e/` nutzen Playwright und prüfen die Seite in Chromium, Firefox und WebKit (Engine von Safari). Sie sind bewusst von `npm test` getrennt, weil sie deutlich langsamer sind.
 
-Voraussetzung: Node.js ab Version 20 (siehe `engines` in `package.json`).
+Voraussetzung: Node.js ab Version 22 (siehe `engines` in `package.json`).
 
 **Einmalig nach dem Herunterladen des Projekts:**
 
@@ -155,7 +155,7 @@ npm run test:e2e
 
 ## Website bereitstellen
 
-`npm run build` erstellt den vollständigen Produktionsordner `dist/`. Er enthält nur `index.html`, `help.html`, `style.css`, `Kanban.png` und das gebündelte `kanban.js`; nicht benötigte Dateien aus einem vorherigen Build werden entfernt. Nur dieser Ordner wird veröffentlicht. Tests, Quellmodule, `package.json` und `node_modules` bleiben draußen. Der Build benötigt Node.js 20 oder neuer und keine zusätzlichen npm-Pakete. Dateilinks funktionieren auf einer veröffentlichten Seite nicht, und die Aufgaben liegen im Browserspeicher der jeweiligen Adresse (Export und Import zum Umziehen).
+`npm run build` erstellt den vollständigen Produktionsordner `dist/`. Er enthält nur `index.html`, `help.html`, `style.css`, `Kanban.png` und das gebündelte `kanban.js`; nicht benötigte Dateien aus einem vorherigen Build werden entfernt. Nur dieser Ordner wird veröffentlicht. Tests, Quellmodule, `package.json` und `node_modules` bleiben draußen. Der Build benötigt Node.js 22 oder neuer und keine zusätzlichen npm-Pakete. Dateilinks funktionieren auf einer veröffentlichten Seite nicht, und die Aufgaben liegen im Browserspeicher der jeweiligen Adresse (Export und Import zum Umziehen).
 
 ## Bekannte Grenzen
 

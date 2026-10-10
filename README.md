@@ -6,7 +6,7 @@ Ein leichtgewichtiges Kanban-Board für die persönliche Aufgabenverwaltung. Die
 
 Vor dem ersten Öffnen oder Veröffentlichen `npm run build` ausführen. Das erzeugt `dist/`; dessen `index.html` kann direkt per `file://` geöffnet oder über einen beliebigen statischen HTTP-Server veröffentlicht werden. Nach Änderungen an `src/` muss deshalb neu gebaut werden.
 
-Der Build benötigt **Node.js 20 oder neuer**, aber keine Installation zusätzlicher npm-Pakete. Für die Tests wird ebenfalls Node.js benötigt.
+Der Build benötigt **Node.js 22 oder neuer**, aber keine Installation zusätzlicher npm-Pakete. Für die Tests wird ebenfalls Node.js benötigt.
 
 ## Funktionen
 
@@ -32,7 +32,7 @@ Importierte Sicherungen werden validiert. Aufgaben und Ereignisse werden bereini
 
 ## Tests
 
-Voraussetzung: Node.js 20 oder neuer.
+Voraussetzung: Node.js 22 oder neuer.
 
 ```sh
 npm test

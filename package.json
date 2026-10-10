@@ -4,7 +4,7 @@
   "description": "Kanban-Board zur Aufgabenverwaltung mit Fristlogik, Alterung, Zusammenfassung sowie Export und Import. Läuft komplett im Browser.",
   "private": true,
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "test": "node --test",
