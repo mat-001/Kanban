@@ -10,7 +10,7 @@ const ENTRY = "main.js";
 const OUTPUT_DIR = path.join(__dirname, "dist");
 const OUTPUT_FILE = path.join(OUTPUT_DIR, "kanban.js");
 const STATIC_FILES = ["help.html", "style.css", "Kanban.png"];
-const SOURCE_SCRIPT = '<script src="dist/kanban.js"></script>';
+const SOURCE_SCRIPT = '<script src="kanban.js"></script>';
 
 function buildWebsite() {
   const { code, modules } = bundle({ srcDir: path.join(__dirname, "src"), entry: ENTRY });
