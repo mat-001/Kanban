@@ -18,7 +18,7 @@ test("index.html vergibt jede id nur einmal", () => {
 });
 
 test("index.html lädt genau das gebaute Skript kanban.js als klassisches Skript", () => {
-    const scripts = [...html.matchAll(/<script\b([^>]*)>/g)].map(match => match[1]);
+    const scripts = [...html.matchAll(/<script\b([^>]*)>/gi)].map(match => match[1]);
     assert.equal(scripts.length, 1);
     assert.match(scripts[0], /src="kanban\.js"/);
     assert.doesNotMatch(scripts[0], /type="module"/);
