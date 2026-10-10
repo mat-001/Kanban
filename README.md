@@ -8,6 +8,10 @@ Vor dem ersten Öffnen oder Veröffentlichen `npm run build` ausführen. Das erz
 
 Der Build benötigt **Node.js 22 oder neuer**, aber keine Installation zusätzlicher npm-Pakete. Für die Tests wird ebenfalls Node.js benötigt.
 
+## Veröffentlichung mit GitHub Pages
+
+Der Workflow `.github/workflows/pages.yml` baut die Website bei jedem Push auf `main` (oder manuell über **Actions → GitHub Pages → Run workflow**) und veröffentlicht ausschließlich den Inhalt von `dist/`. In den Repository-Einstellungen muss unter **Settings → Pages → Build and deployment → Source** die Option **GitHub Actions** ausgewählt sein. Nach erfolgreichem Workflow ist die unter **Settings → Pages** angezeigte URL erreichbar.
+
 ## Funktionen
 
 - Aufgaben mit Titel, Priorität, Aufwand, optionalem Zieltermin und Link in eigenen Fenstern erstellen und bearbeiten; der Aufgabentext darf mehrzeilig sein (Enter speichert, Umschalt+Enter macht eine neue Zeile)
