@@ -17,12 +17,12 @@ test("index.html vergibt jede id nur einmal", () => {
     assert.deepEqual(ids.filter((id, index) => ids.indexOf(id) !== index), []);
 });
 
-test("index.html lädt genau das gebaute Skript dist/kanban.js als klassisches Skript", () => {
+test("index.html lädt genau das gebaute Skript kanban.js als klassisches Skript", () => {
     const scripts = [...html.matchAll(/<script\b([^>]*)>/g)].map(match => match[1]);
     assert.equal(scripts.length, 1);
-    assert.match(scripts[0], /src="dist\/kanban\.js"/);
+    assert.match(scripts[0], /src="kanban\.js"/);
     assert.doesNotMatch(scripts[0], /type="module"/);
-    assert.ok(fs.existsSync(path.join(projectRoot, "dist", "kanban.js")), "dist/kanban.js fehlt, bitte node build.cjs ausführen");
+    assert.ok(fs.existsSync(path.join(projectRoot, "dist", "kanban.js")), "kanban.js fehlt, bitte node build.cjs ausführen");
 });
 
 test("dist/kanban.js ist aktuell und enthält jedes Modul aus src/", () => {
