@@ -4,13 +4,13 @@ Ein leichtgewichtiges Kanban-Board für die persönliche Aufgabenverwaltung. Die
 
 ## Starten
 
-Vor dem ersten Öffnen oder Veröffentlichen `npm run build` ausführen. Das erzeugt `dist/`; dieser Ordner kann direkt per `file://` geöffnet oder über einen beliebigen statischen HTTP-Server veröffentlicht werden.
+Vor dem ersten Öffnen oder Veröffentlichen `npm run build` ausführen. Das erzeugt `dist/`; dieser Ordner kann direkt per `file://` geöffnet oder über einen beliebigen statischen HTTP-Server veröffentlicht werden. Auch die `index.html` im Projektordner lädt `dist/kanban.js`; nach Änderungen an `src/` muss deshalb neu gebaut werden.
 
 Der Build benötigt **Node.js 20 oder neuer**, aber keine Installation zusätzlicher npm-Pakete. Für die Tests wird ebenfalls Node.js benötigt.
 
 ## Funktionen
 
-- Aufgaben mit Titel, Priorität, Aufwand, optionalem Zieltermin und Link erstellen und bearbeiten
+- Aufgaben mit Titel, Priorität, Aufwand, optionalem Zieltermin und Link in eigenen Fenstern erstellen und bearbeiten; der Aufgabentext darf mehrzeilig sein (Enter speichert, Umschalt+Enter macht eine neue Zeile)
 - Aufgaben zwischen „Zu erledigen“, „In Arbeit“ und „Erledigt“ verschieben – per Pfeiltaste oder Drag-and-drop
 - Löschungen innerhalb von 10 Sekunden rückgängig machen
 - Aufgaben nach verpasstem spätestem Start, effektiver Priorität, spätestem Start und Erstellungszeit ordnen
@@ -40,7 +40,17 @@ npm test
 
 Der Befehl verwendet den eingebauten Node-Testläufer; ein `npm install` ist nicht erforderlich. Die Tests liegen in `tests/` und decken Fachlogik, Datums- und Sortierregeln, Speicher-/Versionsverwaltung, Import und Export, Links sowie ausgewählte UI-Abläufe ab.
 
-Die Tests führen die produktiven Skripte in einer simulierten Browserumgebung aus. Sie ersetzen keine echten Browserprüfungen für Layout, Browserkompatibilität, native Dialoge, Tastaturfokus oder Screenreader-Verhalten. Der [Testplan](doku/testplan.md) dokumentiert zusätzliche geplante Prüfungen.
+Die Tests führen die produktiven Skripte in einer simulierten Browserumgebung aus. Sie ersetzen keine echten Browserprüfungen für Layout, Browserkompatibilität, native Dialoge, Tastaturfokus oder Screenreader-Verhalten.
+
+Diese Prüfungen übernehmen die Browser-Tests im Ordner `e2e/` (Playwright, Chromium, Firefox und WebKit):
+
+```sh
+npm install
+npx playwright install   # einmalig
+npm run test:e2e
+```
+
+Einrichtung und Hinweise stehen in der [Projektdokumentation](doku/projektdokumentation.md). Der [Testplan](doku/testplan.md) beschreibt alle Prüfungen, auch die, die von Hand erfolgen.
 
 ## Projektstruktur
 
@@ -59,6 +69,7 @@ Die Tests führen die produktiven Skripte in einer simulierten Browserumgebung a
 │   ├── app.js
 │   ├── main.js
 │   ├── backup.js
+│   ├── constants.js
 │   ├── dates.js
 │   ├── summary.js
 │   ├── sort.js
@@ -69,12 +80,24 @@ Die Tests führen die produktiven Skripte in einer simulierten Browserumgebung a
 │   ├── ui-footer.js
 │   └── ui-notifications.js
 ├── tests/
-│   ├── board-ui.test.js
 │   ├── backup.test.js
+│   ├── board-ui.test.js
+│   ├── build.test.js
 │   ├── domain.test.js
+│   ├── due-date.test.js
 │   ├── link.test.js
 │   ├── storage.test.js
+│   ├── structure.test.js
 │   └── test-helpers.js
+├── e2e/
+│   ├── board.spec.js
+│   ├── dialogs.spec.js
+│   ├── due-date.spec.js
+│   ├── helpers.js
+│   ├── layout.spec.js
+│   ├── links.spec.js
+│   ├── storage.spec.js
+│   └── ui.spec.js
 └── doku/
     ├── projektdokumentation.md
     └── testplan.md

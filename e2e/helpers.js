@@ -21,10 +21,18 @@ const column = (page, key) => page.locator(`.col-${key}`);
 const card = (page, title) => page.locator(".card", { hasText: title });
 const titlesIn = (page, key) => column(page, key).locator(".card .ttitle").allTextContents();
 
+// Öffnet das Fenster „Neue Aufgabe“ über den Knopf oben.
+async function openNewTask(page) {
+    await page.locator("#add").click();
+    await page.locator("#ndlg").waitFor();
+}
+
+// Legt eine Aufgabe über das Fenster „Neue Aufgabe“ an. Bei einer Fehlermeldung bleibt das Fenster offen.
 async function addTask(page, title, link = "") {
+    await openNewTask(page);
     await page.fill("#t", title);
     if (link) await page.fill("#l", link);
-    await page.getByRole("button", { name: "Hinzufügen" }).click();
+    await page.locator("#f").getByRole("button", { name: "Hinzufügen" }).click();
 }
 
 async function openEditor(page, title) {
@@ -32,4 +40,4 @@ async function openEditor(page, title) {
     await page.locator("#edlg").waitFor();
 }
 
-module.exports = { url, makeTask, openBoard, column, card, titlesIn, addTask, openEditor };
+module.exports = { url, makeTask, openBoard, column, card, titlesIn, addTask, openNewTask, openEditor };

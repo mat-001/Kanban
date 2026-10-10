@@ -16,15 +16,15 @@ Der Plan deckt Kernfunktionen, Frist- und Sortierlogik, Persistenz, Import/Expor
 - Mit einer frischen Browser-Profilsitzung und einem separaten Profil für Persistenztests starten.
 - Aktuelle Versionen von Chrome, Firefox und Safari prüfen.
 - Desktop und schmales Mobil-Viewport testen; auf Mobilgeräten insbesondere horizontales Scrollen und die Pfeil-Schaltflächen prüfen.
-- Für automatisierte Browserprüfungen einen lokalen HTTP-Server verwenden; `file://` bei Bedarf als zusätzlichen manuellen Test prüfen.
+- Die automatisierten Browserprüfungen (Playwright, siehe Abschnitt 6) öffnen `index.html` direkt per `file://`. Zusätzlich manuell prüfen: die gebaute Seite `dist/` über einen lokalen HTTP-Server.
 
 ## 2. Funktionale Testfälle
 
 | ID | Prio | Test | Erwartetes Ergebnis |
 |---|---|---|---|
 | F-01 | P0 | Seite erstmals ohne gespeicherte Daten öffnen | Board erscheint mit der vorgesehenen Beispielaufgabe. |
-| F-02 | P0 | Aufgabe mit Text, Priorität, Termin und Aufwand anlegen | Aufgabe erscheint in „Zu erledigen“; Eingaben werden zurückgesetzt. |
-| F-03 | P1 | Leeren bzw. nur aus Leerzeichen bestehenden Titel absenden | Aufgabe wird nicht angelegt; verständliche Meldung erscheint. |
+| F-02 | P0 | „＋ Neue Aufgabe“ öffnen, Text, Priorität, Termin und Aufwand eingeben, „Hinzufügen“ | Das Fenster schließt sich, die Aufgabe erscheint in „Zu erledigen“. Beim erneuten Öffnen sind alle Felder leer (Priorität „Mittel“, Aufwand 1). |
+| F-03 | P1 | Leeren bzw. nur aus Leerzeichen bestehenden Titel absenden | Aufgabe wird nicht angelegt; verständliche Meldung erscheint im Fenster, das Fenster bleibt offen und der Fokus steht im Textfeld. |
 | F-04 | P1 | Titel mit 300 Zeichen, danach längeren Text eingeben | Eingabe ist auf 300 Zeichen begrenzt; gültiger Titel wird korrekt angezeigt. |
 | F-05 | P1 | Aufgabe bearbeiten und speichern | Geänderte Felder werden angezeigt und nach Neuladen beibehalten. |
 | F-06 | P1 | Bearbeitung abbrechen oder Dialog schließen | Änderungen werden nicht übernommen. |
@@ -32,6 +32,9 @@ Der Plan deckt Kernfunktionen, Frist- und Sortierlogik, Persistenz, Import/Expor
 | F-08 | P1 | Aufgabe löschen und innerhalb von 10 Sekunden rückgängig machen | Aufgabe erscheint wieder; der Löschvorgang ist nicht mehr im Verlauf. |
 | F-09 | P1 | Aufgabe löschen und Undo-Zeit ablaufen lassen | Aufgabe bleibt gelöscht; Undo-Meldung verschwindet. |
 | F-10 | P1 | Einstellungen für Sicherheitspuffer und Alterung ändern | Werte werden übernommen, gespeichert und beeinflussen Anzeige bzw. Sortierung. |
+| F-11 | P1 | „Neue Aufgabe“ öffnen, etwas eingeben, dann mit „Abbrechen“, Escape bzw. Klick auf den Hintergrund schließen; Fenster erneut öffnen | Es wird keine Aufgabe angelegt. Beim erneuten Öffnen sind alle Felder und eine alte Fehlermeldung weg. Ein Klick ins Fenster selbst schließt es nicht. |
+| F-12 | P1 | Im Aufgabentext (Neue Aufgabe und Bearbeiten) Enter und Umschalt+Enter drücken | Enter speichert. Umschalt+Enter fügt eine neue Zeile ein, ohne zu speichern. Der Zeilenumbruch bleibt gespeichert und ist auf der Karte sichtbar. |
+| F-13 | P1 | „Neue Aufgabe“ und „Aufgabe bearbeiten“ auf Desktop und schmalem Viewport ansehen | Text und Link nutzen die volle Breite des Fensters. „Hinzufügen“ bzw. „Speichern“ und „Abbrechen“ stehen in einer eigenen Zeile unter den Feldern; nichts läuft über den Fensterrand. |
 
 ## 3. Frist-, Alterungs- und Sortierlogik
 
@@ -47,7 +50,7 @@ Die Regeln sind in `src/dates.js` und `src/sort.js` umgesetzt.
 | L-06 | P1 | Alterung nach Ablauf eines bzw. mehrerer Intervalle prüfen | Effektive Priorität steigt stufenweise; bei Alterung `0` bleibt sie unverändert. |
 | L-07 | P1 | Aufgaben ohne Termin und Aufgaben mit gleichem Startdatum vergleichen | Aufgaben ohne Termin stehen bei ansonsten gleichen Kriterien dahinter; danach gilt die Ablage-Reihenfolge. |
 | L-08 | P1 | Aufgaben in „Erledigt“ verschieben | Neu erledigte Aufgabe steht oben; Erledigungszeit wird angezeigt. |
-| L-09 | P1 | Aufgabe von „In Arbeit“ zurück nach „Zu erledigen“ verschieben | Die Wartezeit beginnt gemäß Beschreibung in der Hilfe neu. **Diesen Fall gezielt prüfen:** Die Logik für `since` in `src/task.js` setzt den Wert derzeit nur beim Zurückholen einer erledigten Aufgabe. |
+| L-09 | P1 | Aufgabe von „In Arbeit“ zurück nach „Zu erledigen“ verschieben | Die Wartezeit beginnt gemäß Beschreibung in der Hilfe neu. `moveTask` in `src/task.js` setzt `since` in beiden Fällen: beim Zurückschieben aus „In Arbeit“ und beim Zurückholen aus „Erledigt“. |
 | L-10 | P0 | Aufwand `1e300` im Formular, im Bearbeiten-Fenster, im Import und in bereits gespeicherten Daten; Puffer `1000000000` in den Einstellungen | Formular und Bearbeiten lehnen mit Meldung ab; Laden, Import und Einstellungen begrenzen auf 1000 Stunden bzw. 365 Tage; die Seite bleibt sofort bedienbar. |
 
 ## 4. Speicherung, Import und Export
@@ -79,12 +82,17 @@ Die Zusammenfassung ist in `src/summary.js` implementiert.
 - **Zusammenfassung:** Zeitraum 1, 30, ungültige Eingabe und leerer Verlauf prüfen. Ereigniszahlen, aktueller Stand und Verlauf müssen zum Zeitraum passen.
 - **Protokollgrenzen:** Einträge außerhalb der letzten 30 Tage sowie oberhalb der maximalen Anzahl dürfen in der Zusammenfassung nicht erscheinen.
 - **Unvertrauenswürdige Texte:** Titel und importierte Verlaufstexte mit HTML-ähnlichem Inhalt wie `<img onerror=...>` importieren. Der Text muss wörtlich angezeigt werden; es darf kein HTML ausgeführt werden.
-- **Tastaturbedienung:** Formulare, Dialoge, Schließen, Bearbeiten, Verschieben und Undo ohne Maus bedienen. Fokuszustand muss sichtbar sein.
-- **Dialoge:** Einstellungen, Zusammenfassung und Bearbeitung öffnen und schließen; insbesondere Escape und Klick auf den Dialoghintergrund prüfen.
-- **Darstellung:** Helles und dunkles Farbschema, lange Aufgabentitel, viele Karten sowie horizontales Board-Scrollen auf schmalen Viewports testen.
+- **Tastaturbedienung:** „Neue Aufgabe“ öffnen und ausfüllen (Enter speichert, Umschalt+Enter macht eine neue Zeile), Dialoge schließen, Bearbeiten, Verschieben und Undo ohne Maus bedienen. Fokuszustand muss sichtbar sein.
+- **Dialoge:** „Neue Aufgabe“, Einstellungen, Zusammenfassung und Bearbeitung öffnen und schließen; insbesondere „Abbrechen“, Escape und Klick auf den Dialoghintergrund prüfen (siehe F-11).
+- **Darstellung:** Helles und dunkles Farbschema, lange und mehrzeilige Aufgabentitel, viele Karten sowie horizontales Board-Scrollen auf schmalen Viewports testen.
 
 ## 6. Empfohlene Automatisierung und Abnahmekriterien
 
-Als erste Automatisierungsstufe eignen sich Tests für Datumsberechnung, Sortierung, Bereinigung und Importlogik sowie wenige Browsertests für die zentralen Abläufe „Anlegen → Verschieben → Neuladen“ und „Export → Import“. Betroffene Logik liegt unter anderem in `src/dates.js`, `src/sort.js` und `src/storage.js`.
+Die Automatisierung besteht aus zwei Stufen:
+
+- **Schnelle Tests** (`npm test`, Ordner `tests/`): Datumsberechnung, Sortierung, Bereinigung, Importlogik, Dialoge in einer simulierten Browserumgebung sowie Aufbau von `index.html` und Aktualität von `dist/kanban.js`. Betroffene Logik liegt unter anderem in `src/dates.js`, `src/sort.js` und `src/storage.js`.
+- **Browser-Tests** (`npm run test:e2e`, Ordner `e2e/`, Playwright in Chromium, Firefox und WebKit): zentrale Abläufe wie „Anlegen → Verschieben → Neuladen“ und „Export → Import“, Escape und Hintergrundklick bei Dialogen, Breite und Anordnung der Felder und Knöpfe sowie das Scroll-Layout.
+
+Noch von Hand zu prüfen bleiben unter anderem Screenreader-Verhalten, Dateilinks in Safari und das tatsächliche Aussehen auf Mobilgeräten.
 
 **Abnahme:** Alle P0-Fälle bestanden; keine Datenverluste in Import-/Persistenztests; keine unbehandelten Fehler in der Browserkonsole; P1-Abweichungen dokumentiert und priorisiert.

@@ -18,7 +18,7 @@ test("bei niedrigem Fenster scrollt die ganze Seite und Kopf- und Fußzeile sind
 
     await page.evaluate(() => window.scrollTo(0, 0));
     await expect(page.locator("h1")).toBeInViewport({ ratio: 1 });
-    await expect(page.getByRole("button", { name: "Hinzufügen" })).toBeInViewport({ ratio: 1 });
+    await expect(page.locator("#add")).toBeInViewport({ ratio: 1 });
 });
 
 test("bei normaler Höhe scrollt die Seite nicht und die Fußzeile steht am unteren Rand", async ({ page }) => {

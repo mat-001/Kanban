@@ -122,11 +122,16 @@ test("exportiert Links und importiert sie unverändert in ein frisches Profil", 
 
 test("legt Aufgaben mit Link über das Formular an", () => {
     const app = loadBoard(createApp());
+    app.element("add").onclick();
     app.element("t").value = "Mit Link";
     app.element("l").value = "  https://example.com/x  ";
     app.element("f").onsubmit(submitEvent());
 
     assert.equal(app.Kanban.state.tasks[0].l, "https://example.com/x");
+    assert.equal(app.element("ndlg").open, false);
+
+    // Beim nächsten Öffnen ist das Linkfeld leer.
+    app.element("add").onclick();
     assert.equal(app.element("l").value, "");
 });
 

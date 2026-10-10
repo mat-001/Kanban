@@ -2,22 +2,23 @@
 
 ## Zweck und Umfang
 
-Das Kanban-Board ist eine statische Webanwendung zur persönlichen Aufgabenverwaltung. Es besteht aus HTML, CSS und klassischen JavaScript-Dateien, die direkt vom Browser geladen werden. Es gibt keinen Server, Framework oder externen Paketbedarf für die Anwendung. Pakete werden nur für die Browser-Tests gebraucht (siehe „Browser-Tests einrichten“).
+Das Kanban-Board ist eine statische Webanwendung zur persönlichen Aufgabenverwaltung. Es besteht aus HTML, CSS und JavaScript-Modulen, die der Build zu einem einzelnen Skript bündeln. Es gibt keinen Server, Framework oder externen Paketbedarf für die Anwendung. Pakete werden nur für die Browser-Tests gebraucht (siehe „Browser-Tests einrichten“).
 
 ## Einstiegspunkte und Module
 
-- `index.html` enthält das Board, Formulare und Dialoge und verweist im Projektverzeichnis auf das gebündelte Skript `dist/kanban.js`.
+- `index.html` enthält das Board und die Dialoge (Neue Aufgabe, Aufgabe bearbeiten, Einstellungen, Zusammenfassung) und verweist im Projektverzeichnis auf das gebündelte Skript `dist/kanban.js`.
 - `help.html` enthält die Bedienhilfe.
-- `style.css` definiert Layout, responsive Spalten, Dialoge und helle/dunkle Farbschemata.
-- `src/main.js` ist der Einstiegspunkt der JavaScript-Module. Der Build bündelt die benötigten Module in `kanban.js`.
+- `style.css` definiert Layout, responsive Spalten, Dialoge und helle/dunkle Farbschemata. Sie wird beim Build nach `dist/` kopiert.
+- `src/main.js` ist der Einstiegspunkt der JavaScript-Module. Der Build bündelt die benötigten Module in `dist/kanban.js`.
+- `src/constants.js` enthält die reinen Konstanten ohne Abhängigkeiten: Spalten (`COLS`), Prioritätsränge (`RANK`), Protokollarten und -grenzen sowie `DATA_VERSION`.
 - `src/dates.js` berechnet Datumsdarstellungen, Wartezeit und spätesten Start und enthält kleine Prüffunktionen (`clampEffort`, `clampSetting`, `cleanLink`).
-- `src/sort.js` definiert Board-Spalten, Prioritätsrang und Sortierung.
+- `src/sort.js` berechnet die effektive Priorität (mit Alterung) und liefert die Sortierfunktion der Spalten.
 - `src/storage.js` initialisiert Zustand, bereinigt lokale Daten und verwaltet Speicherung sowie Verlaufsgrenzen.
 - `src/task.js` enthält Aktionen zum Anlegen, Aktualisieren, Verschieben, Löschen und Wiederherstellen.
 - `src/backup.js` exportiert und importiert JSON-Sicherungen.
 - `src/summary.js` erstellt die Verlaufs- und Statuszusammenfassung.
 - `src/ui-notifications.js` zeigt Hinweisleiste und Rückgängig-Meldung.
-- `src/ui-dialogs.js` verbindet Formular, Bearbeiten-Fenster und Einstellungen.
+- `src/ui-dialogs.js` verbindet die Dialoge „Neue Aufgabe“, „Aufgabe bearbeiten“ und die Einstellungen (Öffnen, Prüfen der Eingaben, Schließen).
 - `src/ui-footer.js` berechnet und zeigt den Speicherverbrauch in der Fußzeile.
 - `src/ui-board.js` rendert Spalten und Karten.
 - `src/app.js` startet alle Module.
@@ -31,7 +32,7 @@ Eine Aufgabe enthält im Regelfall:
 | Feld | Bedeutung |
 |---|---|
 | `id` | numerische Aufgabenkennung |
-| `t` | Titel, getrimmt und auf 300 Zeichen begrenzt |
+| `t` | Titel, getrimmt und auf 300 Zeichen begrenzt; darf Zeilenumbrüche enthalten |
 | `c` | Spalte: `todo`, `doing` oder `done` |
 | `p` | Priorität: `hoch`, `mittel` oder `niedrig` |
 | `created` | Erstellungszeit als Zeitstempel |
@@ -45,7 +46,7 @@ Der Verlauf besteht aus Zeitstempel (`ts`), Ereignistyp (`k`) und gekürztem Tit
 
 ## Fachregeln
 
-- Neue Aufgaben starten in „Zu erledigen“.
+- Neue Aufgaben werden im Dialog „Neue Aufgabe“ eingegeben und starten in „Zu erledigen“.
 - Offene Aufgaben werden zuerst nach verpasstem spätestem Start, dann nach effektiver Priorität, spätestem Start und Erstellungszeit sortiert.
 - Je angefangene 8 Stunden Aufwand wird ein Arbeitstag angesetzt. Samstag und Sonntag sind keine Arbeitstage; Feiertage werden nicht berücksichtigt.
 - Der Sicherheitspuffer wird in Arbeitstagen zum benötigten Vorlauf addiert.
@@ -54,6 +55,23 @@ Der Verlauf besteht aus Zeitstempel (`ts`), Ereignistyp (`k`) und gekürztem Tit
 - Beim Zurückschieben aus „In Arbeit“ nach „Zu erledigen“ beginnt die Wartezeit neu. Beim Wiederöffnen einer erledigten Aufgabe beginnt sie ebenfalls neu.
 - Löschen bietet für 10 Sekunden eine Wiederherstellung an.
 - Beim ersten Start (leerer Speicher) wird eine Beispielaufgabe angelegt und sofort gespeichert. Wird sie gelöscht, kommt sie nicht wieder.
+
+## Dialoge
+
+Alle Eingaben laufen über native `<dialog>`-Elemente in `index.html`:
+
+| Dialog | id | Öffnen | Formular |
+|---|---|---|---|
+| Neue Aufgabe | `ndlg` | Knopf „＋ Neue Aufgabe“ (`add`) in der Kopfzeile | `f` |
+| Aufgabe bearbeiten | `edlg` | ✎ auf der Karte | `ef` |
+| Einstellungen | `dlg` | ⚙️ | – |
+| Zusammenfassung | `sdlg` | 📊 | – |
+
+- Der Dialog „Neue Aufgabe“ wird bei jedem Öffnen geleert (Priorität „Mittel“, Aufwand 1, übrige Felder leer) und setzt den Fokus auf den Aufgabentext. Nach erfolgreichem Anlegen schließt er sich; bei einer Fehlermeldung (leerer Titel, ungültiger Termin, Aufwand oder Link) bleibt er offen und zeigt die Meldung (`msg`) im Fenster.
+- „Aufgabe bearbeiten“ nutzt dieselben Felder in der Variante mit `e…`-ids (`et`, `ep`, `ed`, `ee`, `el`, Meldung `emsg`).
+- Geschlossen werden die Fenster mit „Abbrechen“, Escape oder einem Klick auf den Hintergrund. Nicht gespeicherte Eingaben gehen dabei verloren.
+- Der Aufgabentext (`t`, `et`) ist ein mehrzeiliges Feld (`<textarea>`, 300 Zeichen). **Enter** speichert wie in einem einzeiligen Feld, **Umschalt+Enter** fügt eine neue Zeile ein. Zeilenumbrüche bleiben gespeichert und werden auf der Karte dargestellt (`white-space: pre-line`). In Verlauf und Zusammenfassung erscheinen sie wie Leerzeichen.
+- Layout in `style.css`: Dialoge sind höchstens 560 px breit. In den beiden Aufgaben-Dialogen stehen Felder, Meldung und Knöpfe untereinander; Text und Link nutzen die volle Breite, „Hinzufügen“/„Speichern“ und „Abbrechen“ stehen in einer eigenen Zeile.
 
 ## Links an Aufgaben
 
@@ -85,7 +103,7 @@ Eine JSON-Sicherung enthält `format`, `version`, `exportedAt`, `tasks`, `log` u
 
 ## Ausführen und Testen
 
-Zum Start genügt das Öffnen von `index.html`; für eine lokale HTTP-Auslieferung kann ein beliebiger statischer Webserver verwendet werden.
+Vor dem ersten Öffnen und nach jeder Änderung an `src/` muss `npm run build` ausgeführt werden: `index.html` im Projektordner lädt `dist/kanban.js`. Änderungen an `style.css`, `help.html` und `index.html` wirken im Projektordner sofort; die Kopien in `dist/` entstehen erst beim Build. Für eine lokale HTTP-Auslieferung kann ein beliebiger statischer Webserver verwendet werden.
 
 Automatisierte Tests werden mit Node.js ausgeführt:
 
@@ -93,11 +111,11 @@ Automatisierte Tests werden mit Node.js ausgeführt:
 npm test
 ```
 
-Die Tests liegen in `tests/` und sind nach Themen aufgeteilt: `domain.test.js` (Fachregeln), `storage.test.js` (Speicherung, Versionen), `backup.test.js` (Export und Import), `board-ui.test.js` (Oberfläche) und `link.test.js` (Links). `test-helpers.js` lädt die produktiven Skripte in einer isolierten VM mit kontrollierter Uhr, simuliertem `localStorage` und einer vereinfachten DOM-Umgebung. So sind Fachregeln und zentrale Abläufe wiederholbar testbar, ohne Browserpakete zu installieren.
+Die Tests liegen in `tests/` und sind nach Themen aufgeteilt: `domain.test.js` (Fachregeln), `due-date.test.js` (Zieltermine), `storage.test.js` (Speicherung, Versionen), `backup.test.js` (Export und Import), `board-ui.test.js` (Oberfläche und Dialoge), `link.test.js` (Links), `structure.test.js` (Aufbau von `index.html`, Aktualität von `dist/kanban.js`) und `build.test.js` (Inhalt von `dist/`). `structure.test.js` schlägt fehl, solange `dist/kanban.js` nicht zum Stand von `src/` passt; dann `npm run build` ausführen. `test-helpers.js` lädt die produktiven Skripte in einer isolierten VM mit kontrollierter Uhr, simuliertem `localStorage` und einer vereinfachten DOM-Umgebung. So sind Fachregeln und zentrale Abläufe wiederholbar testbar, ohne Browserpakete zu installieren.
 
 Die simulierte DOM-Umgebung ist kein vollständiger Browser. Tatsächliche Darstellung, Browserkompatibilität, HTML-Parsing, Tastaturfokus, native Dialogfunktionen und Screenreader-Verhalten benötigen ergänzende Prüfungen in realen Browsern.
 
-Die Tests finden Elemente über feste Klassennamen und nicht über ihre Position: `ttitle` (Kartentitel), `col-todo`/`col-doing`/`col-done` (Spalten), `mv` (Knöpfe einer Karte), `tlink` (Link), `msg-action` (Knopf in einer Meldung) sowie `s-bilanz`, `s-stand` und `s-verlauf` (Teile der Zusammenfassung). Diese Namen dürfen nur zusammen mit den Tests geändert werden. Neue Bereiche, die getestet werden sollen, bekommen ebenfalls einen eigenen Klassennamen.
+Die Tests finden Elemente über feste Klassennamen und nicht über ihre Position: `ttitle` (Kartentitel), `col-todo`/`col-doing`/`col-done` (Spalten), `mv` (Knöpfe einer Karte), `tlink` (Link), `msg-action` (Knopf in einer Meldung) sowie `s-bilanz`, `s-stand` und `s-verlauf` (Teile der Zusammenfassung). Diese Namen dürfen nur zusammen mit den Tests geändert werden. Neue Bereiche, die getestet werden sollen, bekommen ebenfalls einen eigenen Klassennamen. Dasselbe gilt für die ids der Dialoge und Felder (`add`, `ndlg`, `ncancel`, `t`, `et`, `ef` und weitere); sie werden von den schnellen Tests und von den Browser-Tests verwendet.
 
 ## Browser-Tests einrichten (e2e)
 
@@ -128,6 +146,7 @@ npm run test:e2e
 - Die Tests öffnen `index.html` direkt als Datei (`file://`), so wie die Seite auch im Alltag genutzt wird.
 - Playwright legt beim Lauf die Ordner `test-results/` und `playwright-report/` an. Beide stehen in `.gitignore`.
 - WebKit in Playwright ist nah an Safari, aber nicht identisch. Das Verhalten bei Dateilinks in Safari wird weiterhin von Hand geprüft.
+- Die Browser-Tests liegen in `board.spec.js`, `dialogs.spec.js`, `due-date.spec.js`, `layout.spec.js`, `links.spec.js`, `storage.spec.js` und `ui.spec.js`. Mit `addTask` aus `e2e/helpers.js` wird eine Aufgabe über den Dialog „Neue Aufgabe“ angelegt (`openNewTask` öffnet nur das Fenster).
 - Neue Browser-Tests gehören in `e2e/` und enden auf `.spec.js`. Dateien in `tests/` sind nur für `node --test` gedacht.
 - Gemeinsame Hilfsfunktionen der Browser-Tests stehen in `e2e/helpers.js`. Die Datei endet nicht auf `.spec.js` und wird deshalb nicht als Test ausgeführt.
 - `npx playwright test --project=chromium` testet nur in einem Browser und ist deutlich schneller.

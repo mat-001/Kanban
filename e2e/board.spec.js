@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const {  makeTask, openBoard, column, card, titlesIn, openEditor } = require("./helpers");
+const { makeTask, openBoard, column, card, titlesIn, openEditor, openNewTask } = require("./helpers");
 
 test("jede id kommt in index.html nur einmal vor", async ({ page }) => {
     await openBoard(page);
@@ -31,21 +31,44 @@ test("nur die Spalten scrollen, die Fußzeile sitzt direkt darunter am unteren R
     expect(Math.abs(foot.y + foot.height - height)).toBeLessThanOrEqual(2);
 });
 
-test("legt Aufgaben mit der Eingabetaste an und leert das Feld", async ({ page }) => {
+test("legt Aufgaben mit der Eingabetaste an, schließt das Fenster und öffnet es beim nächsten Mal leer", async ({ page }) => {
     await openBoard(page, []);
+    await openNewTask(page);
+    await expect(page.locator("#t")).toBeFocused();
     await page.fill("#t", "Per Enter");
     await page.press("#t", "Enter");
 
+    await expect(page.locator("#ndlg")).toBeHidden();
     await expect(card(page, "Per Enter")).toBeVisible();
+
+    await openNewTask(page);
     await expect(page.locator("#t")).toHaveValue("");
+});
+
+test("Umschalt+Enter macht im Aufgabentext eine neue Zeile und speichert nicht", async ({ page }) => {
+    await openBoard(page, []);
+    await openNewTask(page);
+    await page.fill("#t", "Zeile 1");
+    await page.press("#t", "Shift+Enter");
+    await page.keyboard.type("Zeile 2");
+
+    await expect(page.locator("#ndlg")).toBeVisible();
+    await expect(page.locator("#t")).toHaveValue("Zeile 1\nZeile 2");
+    await expect(page.locator(".card")).toHaveCount(0);
+
+    await page.press("#t", "Enter");
+    await expect(page.locator("#ndlg")).toBeHidden();
+    await expect(card(page, "Zeile 1")).toContainText("Zeile 2");
 });
 
 test("weist eine leere Aufgabe mit Hinweis ab", async ({ page }) => {
     await openBoard(page, []);
-    await page.getByRole("button", { name: "Hinzufügen" }).click();
+    await openNewTask(page);
+    await page.locator("#f").getByRole("button", { name: "Hinzufügen" }).click();
 
     await expect(page.locator("#msg")).toContainText("Bitte eine Aufgabe eingeben");
     await expect(page.locator("#t")).toBeFocused();
+    await expect(page.locator("#ndlg")).toBeVisible();
     await expect(page.locator(".card")).toHaveCount(0);
 });
 

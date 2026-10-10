@@ -48,17 +48,24 @@ test("zeigt in der Zusammenfassung nur Ereignisse des gewählten Zeitraums", () 
     assert.equal(find(summary, "s-verlauf").children.some(item => item.textContent.includes("Altes Ereignis")), true);
 });
 
-test("legt Aufgaben über das Formular an und weist leere Titel zurück", () => {
+test("legt Aufgaben über das Fenster Neue Aufgabe an und weist leere Titel zurück", () => {
     const app = loadBoard(createApp());
+    const dialog = app.element("ndlg");
     const form = app.element("f");
     const title = app.element("t");
-    const due = app.element("d");
     const effort = app.element("e");
+
+    app.element("add").onclick();
+    assert.equal(dialog.open, true);
+    // Beim Öffnen wird das Datumsfeld durch ein neues ersetzt, deshalb erst danach holen.
+    const due = app.element("d");
+    assert.equal(title.focused, true);
 
     title.value = "   ";
     form.onsubmit(submitEvent());
     assert.equal(app.Kanban.state.tasks.length, 0);
     assert.match(app.element("msg").textContent, /Bitte eine Aufgabe eingeben/);
+    assert.equal(dialog.open, true);
 
     title.value = "  Automatisierte Aufgabe  ";
     app.element("p").value = "hoch";
@@ -72,10 +79,82 @@ test("legt Aufgaben über das Formular an und weist leere Titel zurück", () => 
     assert.equal(created.p, "hoch");
     assert.equal(created.due, "2026-10-12");
     assert.equal(created.e, 16);
-    assert.equal(title.value, "");
-    assert.equal(effort.value, "1");
+    assert.equal(dialog.open, false);
     assert.equal(findAll(app.element("b"), "col").length, 3);
     assert.equal(cardFor(app, "Automatisierte Aufgabe") !== null, true);
+});
+
+test("öffnet das Fenster Neue Aufgabe jedes Mal leer und schließt es ohne Anlegen", () => {
+    const app = loadBoard(createApp());
+    const dialog = app.element("ndlg");
+
+    app.element("add").onclick();
+    app.element("t").value = "Nur angefangen";
+    app.element("p").value = "hoch";
+    app.element("e").value = "5";
+    app.element("l").value = "https://example.com";
+    app.element("msg").hidden = false;
+
+    app.element("ncancel").onclick();
+    assert.equal(dialog.open, false);
+    assert.equal(app.Kanban.state.tasks.length, 0);
+
+    app.element("add").onclick();
+    assert.equal(dialog.open, true);
+    assert.equal(app.element("t").value, "");
+    assert.equal(app.element("p").value, "mittel");
+    assert.equal(app.element("e").value, "1");
+    assert.equal(app.element("l").value, "");
+    assert.equal(app.element("msg").hidden, true);
+    assert.equal(app.element("t").focused, true);
+
+    dialog.onclick({ target: app.element("t") });
+    assert.equal(dialog.open, true, "Klick ins Feld darf das Fenster nicht schließen");
+    dialog.onclick({ target: dialog });
+    assert.equal(dialog.open, false, "Klick auf den Hintergrund schließt das Fenster");
+});
+
+test("Enter im Aufgabentext speichert, Umschalt+Enter fügt eine neue Zeile ein", () => {
+    const app = loadBoard(createApp());
+    let submits = 0;
+    for (const [formId, handler] of [["f", () => app.element("f").onsubmit(submitEvent())], ["ef", () => app.element("ef").onsubmit(submitEvent())]]) {
+        app.element(formId).requestSubmit = () => { submits++; handler(); };
+    }
+    // Gibt zurück, ob die Standardaktion (neue Zeile) verhindert wurde.
+    const press = (id, options = {}) => {
+        let prevented = false;
+        app.element(id).onkeydown({ key: "Enter", shiftKey: false, preventDefault() { prevented = true; }, ...options });
+        return prevented;
+    };
+
+    app.element("add").onclick();
+    app.element("t").value = "Per Enter";
+    assert.equal(press("t", { shiftKey: true }), false);
+    assert.equal(press("t", { key: "a" }), false);
+    assert.equal(press("t", { isComposing: true }), false);
+    assert.equal(submits, 0);
+
+    assert.equal(press("t"), true);
+    assert.equal(submits, 1);
+    assert.equal(app.Kanban.state.tasks[0].t, "Per Enter");
+    assert.equal(app.element("ndlg").open, false);
+
+    actionButton(cardFor(app, "Per Enter"), "✎").onclick();
+    app.element("et").value = "Geändert";
+    assert.equal(press("et"), true);
+    assert.equal(submits, 2);
+    assert.equal(app.Kanban.state.tasks[0].t, "Geändert");
+    assert.equal(app.element("edlg").open, false);
+});
+
+test("behält Zeilenumbrüche im Aufgabentext", () => {
+    const app = loadBoard(createApp());
+    app.element("add").onclick();
+    app.element("t").value = "Zeile 1\nZeile 2";
+    app.element("f").onsubmit(submitEvent());
+
+    assert.equal(app.Kanban.state.tasks[0].t, "Zeile 1\nZeile 2");
+    assert.equal(find(cardFor(app, "Zeile 1\nZeile 2"), "ttitle").textContent, "Zeile 1\nZeile 2");
 });
 
 test("verhindert unvollständige Termine und kann das Datumsfeld zurücksetzen", () => {
