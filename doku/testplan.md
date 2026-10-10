@@ -91,7 +91,7 @@ Die Zusammenfassung ist in `src/summary.js` implementiert.
 Die Automatisierung besteht aus zwei Stufen:
 
 - **Schnelle Tests** (`npm test`, Ordner `tests/`): Datumsberechnung, Sortierung, Bereinigung, Importlogik, Dialoge in einer simulierten Browserumgebung sowie Aufbau von `index.html` und Aktualität von `dist/kanban.js`. Betroffene Logik liegt unter anderem in `src/dates.js`, `src/sort.js` und `src/storage.js`.
-- **Browser-Tests** (`npm run test:e2e`, Ordner `e2e/`, Playwright in Chromium, Firefox und WebKit): zentrale Abläufe wie „Anlegen → Verschieben → Neuladen“ und „Export → Import“, Escape und Hintergrundklick bei Dialogen, Breite und Anordnung der Felder und Knöpfe sowie das Scroll-Layout.
+- **Browser-Tests** (`npm run test:e2e`, Ordner `e2e/`, Playwright in Chromium, Firefox und WebKit): Der Befehl baut `dist/` frisch und prüft die ausgelieferte Anwendung. Getestet werden zentrale Abläufe wie „Anlegen → Verschieben → Neuladen“ und „Export → Import“, Escape und Hintergrundklick bei Dialogen, Breite und Anordnung der Felder und Knöpfe sowie das Scroll-Layout.
 
 Noch von Hand zu prüfen bleiben unter anderem Screenreader-Verhalten, Dateilinks in Safari und das tatsächliche Aussehen auf Mobilgeräten.
 

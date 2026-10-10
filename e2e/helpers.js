@@ -2,7 +2,7 @@ const { pathToFileURL } = require("node:url");
 const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
-const url = pathToFileURL(path.join(root, "index.html")).href;
+const url = pathToFileURL(path.join(root, "dist", "index.html")).href;
 
 function makeTask(id, overrides = {}) {
     return { id, t: `Aufgabe ${id}`, c: "todo", p: "mittel", created: Date.now() - id, due: "", e: 1, ...overrides };

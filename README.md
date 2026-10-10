@@ -4,7 +4,7 @@ Ein leichtgewichtiges Kanban-Board für die persönliche Aufgabenverwaltung. Die
 
 ## Starten
 
-Vor dem ersten Öffnen oder Veröffentlichen `npm run build` ausführen. Das erzeugt `dist/`; dieser Ordner kann direkt per `file://` geöffnet oder über einen beliebigen statischen HTTP-Server veröffentlicht werden. Auch die `index.html` im Projektordner lädt `dist/kanban.js`; nach Änderungen an `src/` muss deshalb neu gebaut werden.
+Vor dem ersten Öffnen oder Veröffentlichen `npm run build` ausführen. Das erzeugt `dist/`; dessen `index.html` kann direkt per `file://` geöffnet oder über einen beliebigen statischen HTTP-Server veröffentlicht werden. Nach Änderungen an `src/` muss deshalb neu gebaut werden.
 
 Der Build benötigt **Node.js 20 oder neuer**, aber keine Installation zusätzlicher npm-Pakete. Für die Tests wird ebenfalls Node.js benötigt.
 
@@ -50,7 +50,7 @@ npx playwright install   # einmalig
 npm run test:e2e
 ```
 
-Einrichtung und Hinweise stehen in der [Projektdokumentation](doku/projektdokumentation.md). Der [Testplan](doku/testplan.md) beschreibt alle Prüfungen, auch die, die von Hand erfolgen.
+`npm run test:e2e` erstellt vor dem Start der Playwright-Tests automatisch einen frischen Build und prüft damit die ausgelieferte Anwendung in Chromium, Firefox und WebKit. Einrichtung und Hinweise stehen in der [Projektdokumentation](doku/projektdokumentation.md). Der [Testplan](doku/testplan.md) beschreibt alle Prüfungen, auch die, die von Hand erfolgen.
 
 ## Projektstruktur
 
