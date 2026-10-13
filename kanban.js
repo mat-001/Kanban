@@ -1,4 +1,4 @@
-// AUTOMATISCH ERZEUGT von build.mjs aus src/*.js. Nicht von Hand ändern, sondern src/ ändern und neu bauen.
+// AUTOMATISCH ERZEUGT von build.cjs aus src/*.js. Nicht von Hand ändern, sondern src/ ändern und neu bauen.
 (function () {
   "use strict";
   const __modules = {};
@@ -997,6 +997,34 @@
       $("e").max = $("ee").max = MAX_EFFORT;
       $("buf").max = $("age").max = MAX_SETTING;
 
+      // Enter speichert wie bisher, Umschalt+Enter fügt im Aufgabentext eine neue Zeile ein.
+      [["t", "f"], ["et", "ef"]].forEach(([fieldId, formId]) => {
+        $(fieldId).onkeydown = event => {
+          if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+          event.preventDefault();
+          $(formId).requestSubmit();
+        };
+      });
+
+      // Dialog "Neue Aufgabe": wird bei jedem Öffnen geleert
+      const newDialog = $("ndlg");
+      function openNew() {
+        $("t").value = "";
+        $("p").value = "mittel";
+        $("e").value = "1";
+        resetDate();
+        $("l").value = "";
+        $("msg").hidden = true;
+        newDialog.showModal();
+        $("t").focus();
+      }
+
+      $("add").onclick = openNew;
+      $("ncancel").onclick = () => newDialog.close();
+      newDialog.onclick = event => {
+        if (event.target === newDialog) newDialog.close();
+      };
+
       // Erstellen-Formular
       $("f").onsubmit = event => {
         event.preventDefault();
@@ -1040,11 +1068,8 @@
           e: clampEffort(effort),
           ...(link && { l: link })
         });
-        titleInput.value = "";
-        resetDate();
-        $("e").value = "1";
-        $("l").value = "";
         onChange();
+        newDialog.close();
       };
 
       // Bearbeiten-Formular
@@ -1274,28 +1299,41 @@
     const { initNotifications } = __require("ui-notifications.js");
 
     // Einzige Stelle, an der die Module zusammengesteckt werden. Alles andere bekommt seine
-    // Abhängigkeiten über Parameter und importiert nur reine Hilfsmodule.
-    const store = createStore({ storage: browserStorage });
-    const actions = createTaskActions(store);
+    // Abhängigkeiten über Parameter. Das Laden dieser Datei startet nichts: gestartet wird erst durch
+    // den Aufruf von startApp() (siehe main.js). Speicher, Store und Aktionen lassen sich von außen ersetzen.
+    function startApp({
+      storage = browserStorage,
+      store = createStore({ storage }),
+      actions = createTaskActions(store)
+    } = {}) {
+      // Die Pfeilfunktionen unten greifen erst beim Klick auf notifications/dialogs zu,
+      // wenn beide längst existieren. Deshalb ist die Reihenfolge der Definitionen unkritisch.
+      const board = createBoard({
+        store,
+        actions,
+        onEdit: task => dialogs.openEdit(task),
+        onDelete: task => notifications.removeTask(task),
+        onRendered: () => updateFooter(storage)
+      });
+      const notifications = initNotifications({ store, actions, onChange: board.render });
+      const dialogs = initDialogs({ store, actions, notifications, onChange: board.render });
 
-    // Die Pfeilfunktionen unten greifen erst beim Klick auf notifications/dialogs zu,
-    // wenn beide längst existieren. Deshalb ist die Reihenfolge der Definitionen unkritisch.
-    const board = createBoard({
-      store,
-      actions,
-      onEdit: task => dialogs.openEdit(task),
-      onDelete: task => notifications.removeTask(task),
-      onRendered: () => updateFooter(browserStorage)
-    });
-    const notifications = initNotifications({ store, actions, onChange: board.render });
-    const dialogs = initDialogs({ store, actions, notifications, onChange: board.render });
+      initBackup({ store, onChange: board.render });
+      initSummary({ store });
 
-    initBackup({ store, onChange: board.render });
-    initSummary({ store });
+      board.render();
+      return { store, actions, board, notifications, dialogs };
+    }
+    return { startApp };
+  };
 
-    board.render();
+  __modules["main.js"] = function () {
+    // Einstiegspunkt der Seite: startet die App. Nur hier gibt es einen Seiteneffekt beim Laden.
+    const { startApp } = __require("app.js");
+
+    startApp();
     return {  };
   };
 
-  __require("app.js");
+  __require("main.js");
 })();
